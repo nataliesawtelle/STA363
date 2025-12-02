@@ -1,0 +1,106 @@
+---
+title: "Mini-Assignment 20: Odds and Odds Ratios"
+author: "Natalie Sawtelle"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(knitr)
+```
+
+
+
+## Example: The Framingham Heart Study
+
+*Quoted from the Framingham Heart Study website at* **framinghamheartstudy.org**:
+
+Cardiovascular disease (CVD) is the leading cause of death and serious illness in the United States. In 1948, the Framingham Heart Study - under the direction of the National Heart Institute (now known as the National Heart, Lung, and Blood Institute or NHLBI) - embarked on an ambitious project in health research. At the time, little was known about the general causes of heart disease and stroke, but the death rates for CVD had been increasing steadily since the beginning of the century and had become an American epidemic. The Framingham Heart Study became a joint project of the National Heart, Lung and Blood Institute and Boston University.
+
+The objective of the Framingham Heart Study was to identify the common factors or characteristics that contribute to CVD by following its development over a long period of time in a large group of participants who had not yet developed overt symptoms of CVD or suffered a heart attack or stroke.  The researchers recruited 5,209 men and women between the ages of 30 and 62 from the town of Framingham, Massachusetts, and began the first round of extensive physical examinations and lifestyle interviews that they would later analyze for common patterns related to CVD development. Since 1948, the subjects have continued to return to the study every two years for a detailed medical history, physical examination, and laboratory tests, and in 1971, the Study enrolled a second generation - 5,124 of the original participants' adult children and their spouses - to participate in similar examinations.  The study continues with new cohorts to this day.
+
+The datafile `framingham.txt` contains selected variables for 4,658 participants in the study.  The variables are:
+
+* `age` - subject age in years
+* `sbp` - systolic blood pressure
+* `dbp` - diastolic blood pressure
+* `scl` - serum cholesterol level
+* `bmi` - BMI (Body Mass Index)
+* `chdfate` - Indicator of whether the subject has been dignosed (1) or not (0) with coronary heart disease
+
+```{r}
+framingham <- read_table("framingham.txt", show_col_types=FALSE)
+head(framingham)
+```
+
+----
+
+**Body Mass Index (BMI)** is typically broken up into 4 distinct categories. By looking at the odds ratios of these categories, let's determine if BMI appears to influence the prevalence of heart disease in the `framingham` dataset.
+
+First, let's create the standard BMI categories (visit https://www.cancer.org/cancer/cancer-causes/diet-physical-activity/body-weight-and-cancer-risk/adult-bmi.html):
+
+```{r}
+framingham <- framingham |>
+  mutate(BMI_Category = case_when(bmi < 18.5 ~ "Underweight",
+                                  bmi <= 24.9 ~ "Normal weight",
+                                  bmi <= 29.9 ~ "Overweight",
+                                  bmi >= 30 ~ "Obese"))
+```
+
+----
+
+## Q1
+
+Write some `xtabs()` code providing a table output of all those in the dataset with and without heart disease.
+
+```{r}
+xtabs(~ chdfate, data = framingham)
+```
+
+
+
+## Q2
+
+What are the odds an individual in the survey has heart disease?
+
+**The odds an individual in the survey has heart disease is 1465 / 3193 = 0.4588.**
+
+
+
+
+## Q3
+
+Write some `xtabs()` code providing a table of all those in the dataset with and without heart disease stratified by the weight categories based on BMI (the `BMI_Category` variable).
+
+```{r}
+xtabs(~ BMI_Category + chdfate, data = framingham)
+```
+
+
+
+## Q4
+
+What are the odds of CHD for underweight, normal, overweight, and obese, respectively? 
+
+**Underweight 8 / 63 = 0.127, normal 530 / 1609 = 0.329, overweight 681 / 1171 = 0.582, obese 246 / 350 = 0.703.**
+
+
+
+
+## Q5
+
+Does it appear that BMI levels predict the rates of heart disease? Justify.
+
+**Yes, BMI levels appear to predict the rates of heart disease. As BMI increases, the odds of CHD rise steadily. Underweight has the lowest, followed by normal weight, then overweight, and obese has the highest.**
+
+
+
+## Q6
+
+Calculate the odds ratio (one set of odds divided by another) comparing the cardiovascular disease for overweight vs underweight individuals in the dataset? Interpret this result in context.
+
+
+**Overweight individuals have about 4.6 times the odds of having cardiovascular disease compared to underweight individuals in this dataset.**
+
+

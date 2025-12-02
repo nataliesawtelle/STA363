@@ -1,0 +1,123 @@
+---
+title: 'In-class 11: Regression Inference'
+author: "Natalie Sawtelle"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(knitr)
+library(GGally)
+library(ggfortify)
+```
+
+## Data
+
+This data is taken from:
+
+> Triola, M. M., & Triola, M. F. (2006). Biostatistics for the Biological and Health Sciences. Boston, MA: Pearson.
+
+Researchers have studied bears by anesthetizing them in order to obtain vital measurements, such as age, sex, length and weight (do not try this at home, because checking the length or sex of a bear not fully anesthetized can be an unpleasant experience). Because most bears are quite heavy and difficult to lift, researchers and hunters experience considerable difficulty actually weighing a bear in the wild. We aim to build a predictive model on bear weight using other variables in the data.
+
+The full data are provided in the file `bear_measurements.csv` and contain the following variables.
+
+
+* `Age` - The age of the bear, recorded in months.
+* `Month` - The month the observation was collected. 
+* `Sex` - the biological sex of the bear, 0=male and 1=female.
+* `Head_Length` - The length of the bear's head, in inches.
+* `Head_Width` - The width of the bear's head, in inches.
+* `Neck_Circumference` - The distance around the bear's neck, in inches. 
+* `Body_Length` - The length of the bear's body, in inches.
+* `Chest_Circumference` - The distance around the bear's chest, in inches. 
+* `Weight` - The bear's weight, in pounds.
+
+#### Statistical Goals
+
+The assignment for today is designed to give you practice at fitting linear models in R and performing some basic transformations on variables to see how you can potentially *improve* models.
+
+
+## Data entry
+
+*This part has been done for you in the interest of time.*
+
+```{r, warning=FALSE, message=FALSE}
+bear_data <- read_csv("bear_measurements.csv",
+                      show_col_types=FALSE)
+glimpse(bear_data)
+```
+
+For today, we will be using `Head_Length`, `Head_Width`, `Neck_Circumference`, `Body_Length` and `Chest_Cricumference` to predict `Weight`.
+
+## Supplied Code
+
+This code builds a scatterplot matrix of the data. Describe any patterns you see in the relationships between variables. You may wish to reference the plot in some of your discussion
+
+```{r, warning=FALSE, message=FALSE, fig.width=8, fig.height=7}
+ggpairs(bear_data, columns=4:9)
+```
+
+We fit the regression model.
+
+```{r}
+bear_fit <- lm(Weight ~ Head_Length + Head_Width + Neck_Circumference +
+                 Body_Length + Chest_Circumference, data=bear_data)
+```
+
+**For today only, we forego the residual analysis** -- see the day 10 assignment solutions for a thorough treatment of the assumptions. Consider the summary output:
+
+```{r}
+summary(bear_fit)
+```
+
+
+
+
+## Part 1
+
+On average, how far *off* is the model in predicting bear weights?
+
+**On average, the model is 31.55 lbs off, on 48 degrees of freedom. The RSE measures the average deviation between the bears actual weight with the models predicted weight.**
+
+
+
+## Part 2
+
+Does the model with head length, head width, neck circumference, body length and chest circumference significantly predict bear weights?
+
+**Yes the model does significantly predict bear weights, the overall F-statistic = 148.4 with a p-value < 2.2e-16, which is below 0.05.**
+
+
+
+
+## Part 3
+
+What percentage in the variability of bear weights is explained by the linear model with head length, head width, neck circumference, body length and chest circumference as predictors?
+
+
+**The model explains 93.29% of the variability in bear weights,  based on this we know this we know that 93.29% of the variation in bear weights can be explained by the combination of the five predictors.**
+
+
+
+## Part 4
+
+Which predictor variables appear to be conditionally insignificant?  Which predictor variables appear to be conditionally significant?
+
+
+**Neck_Circumference (p = 0.0134) and Chest_Circumference (p = 1.20e-07) both have p-values that are less than 0.05 meaning they are not significant, Head_Length (p = 0.1831), Head_Width (p = 0.5771), and Body_Length (p = 0.4539) all have p-values greater than 0.05 meaning they are significant.**
+
+
+
+
+## Part 5
+
+Note, all five predictor variables are essentially measures of distance and all in the same units (inches). Which variable(s) do you feel is (are) the most *predictive* of bear weights? Justify.
+
+**Chest Circumference has the smallest p-value, largest positive coefficient, and a high t-value, proving that it strongly relates to bear weight.**
+
+
+
+

@@ -1,0 +1,182 @@
+---
+title: "Day 03 Assignment"
+author: "Natalie Sawtelle"
+date: "2025-09-03"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggfortify)
+library(knitr)
+library(emmeans)
+```
+
+## Data for today
+
+A tire manufacturer is interested in investigating the handling properties for different tread patterns. Data were recorded on the stopping distances measured to the nearest foot for a standard sized car to come to a complete stop from a speed of 60 miles per hour. There are six measurements of the stopping distance for each of four different tread patterns labeled A, B, C and D. The same driver and car were used for all 24 measurements and, although not clear from the saved data file, the order of treatments were assigned at random.
+
+**Source:** Ugarte, M. D., Militino, A. F., and Arnholt, A. T. (2008) Probability and Statistics with R. Chapman & Hall/CRC.
+
+## Design Elements
+
+Please identify the design elements in this example.
+
+* What are the **Experimental Units** in this study? 
+     - *Tires*
+* What is the **response variable** in this study? 
+     - *Stopping distance*
+* What is the **factor** in this study? 
+     - *Tread Type*
+* How many **factor levels** are there? 
+     - *four*
+* What are the **treatments**?  
+     - *A, B, C, D*
+* Cite **two ways** that the researcher took to control for nuisance variables and unexplained variability.
+     - *The same driver was used*
+     - *The same car was used*
+
+
+
+
+
+## Data Input
+
+Today's data is distributed via a CSV file on the canvas site. 
+
+Download the data and make sure **the CSV file and this Rmd are saved in the same folder** or directory (this is a good time to create a "STA363" folder if you have not already). 
+
+```{r}
+tire_tread_study <- read.csv("TireData.csv")
+```
+
+
+
+
+## Summary Statistics by Tire Tread
+
+Below, we provide some code that builds a summary table that includes summary statistics for the whole sample as well as summary statistics stratified by tire tread type. On your own, take a few moments to look at the code to decipher how it works.
+
+**NOTE:** You may need to edit the `tire_tread_study` variable if you named the data something else.
+
+```{r}
+bind_rows(tire_tread_study |>
+  summarize(N=n(),
+            Mean=mean(StopDist),
+            SD =  sd(StopDist),
+            Min = min(StopDist),
+            Median = median(StopDist),
+            Max = max(StopDist) ) |>
+  mutate(`Tread Type` = "All Tread Types"),
+tire_tread_study |>
+  group_by(`Tread Type`=TreadType) |>
+  summarize(N=n(),
+            Mean=mean(StopDist),
+            SD =  sd(StopDist),
+            Min = min(StopDist),
+            Median = median(StopDist),
+            Max = max(StopDist) ) ) |>
+  select(`Tread Type`, N, Mean, SD, Min, Median, Max) |>
+  kable()
+```
+
+Based on the table, what conclusions can you make about the stopping times of the different tire tread types.
+
+*We can see that on average the C tread had the fastest stopping time, while on average the A tread had the slowest stopping time.*
+
+
+
+
+## Graphical Analysis - Part 1
+
+So far in this class we have generally used Box-Whiskers plots for a graphical exploration of our data. With this data, why do Box-Whiskers plot seem unnecessarily?  (hint: look at the sample size).
+
+*Since there are only a total of 6 different results per each treatment, Box-Whisker plots seem to be unnecessary in comparison to dot plots that will be more informative than a summary based of quartiles.*
+
+
+
+
+## Graphical Analysis - Part 2
+
+Build what you consider to be an informative plot so a viewer can compare the stopping distances among the four tire treads.
+
+```{r plot}
+ggplot(tire_tread_study, aes(x=StopDist, y=TreadType)) +
+  geom_dotplot(color="gray50") +
+  stat_summary(fun=mean, geom="point", shape=23, size=3.5, fill="gray60", stroke=2) + 
+  labs(x="Stopping Distance", 
+       y="Tread Type",
+       title="The Stopping Distance of Tread Types") + 
+  scale_x_continuous() +
+  theme_bw()
+```
+
+*The dot-plot shows that tread type C has the shortest stopping distances, tread type A tends to have the longest, and B and D are in between.*
+
+
+
+
+## ANOVA Fit
+
+In the below code chunk, fit the ANOVA model for Stopping Distance as a function of Tread Type.
+
+```{r}
+anova_model <-aov(StopDist ~ TreadType, data = tire_tread_study)
+autoplot(anova_model)            
+
+```
+
+
+
+## Residual Analysis
+
+Complete a residual analysis for the fitted ANOVA model in the part above.
+
+```{r}
+summary(anova_model)
+```
+
+- **Independence** -- *This experiment used random tread order and the same car and driver, so independence of errors is a reasonable assumption.*
+- **Constant variance** -- *From the residual analysis vs fit plots, the spread of residuals looks about the same across groups, so constant variance seems correct.*
+- **Normality** -- *The qqplot of residuals shows some points close to the line, suggesting normality is not incorrect.*
+
+
+
+
+## ANOVA Output
+
+Perform the ANOVA hypothesis test at a 5% significance level.  Make sure to interpret the results of the hypothesis test in context.
+
+```{r}
+anova_model <-aov(StopDist ~ TreadType, data = tire_tread_study)
+autoplot(anova_model)
+summary(anova_model)
+```
+
+*At the 5% significance level, the p-value from the ANOVA is 0.0073. Since this p-value is less than 0.05, we reject the null hypothesis and conclude that at least one tire tread type has a different mean stopping distance.*
+
+
+
+## Multiple Comparisons
+
+You should have seen a significant result in the previous work. Perform a Tukey pairwise multiple comparison to determine the difference in mean stopping distance for the four tread types.
+
+```{r}
+library(emmeans)                       
+tread_mc <- emmeans(anova_model, ~TreadType)  
+contrast(tread_mc, "tukey")             
+```
+
+*Tread Type C preforms significantly better than tread types A and D. On the other hand, B does not preform significantly better than tread type C.*
+
+
+
+## Contextual Findings
+
+Make some overall contextual findings on this experiment.
+
+*Overall tread type C has the shortest stopping distance, while A has the longest. B and D are in between both A and C types.*
+
+
+

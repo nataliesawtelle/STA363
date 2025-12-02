@@ -1,0 +1,152 @@
+---
+title: "Day 23: Assignment"
+author: "Natalie Sawtelle"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(knitr)
+```
+
+
+## Data
+
+West Nile Virus (WNV) is a virus transmitted by mosquitoes that can cause inflammation of the brain and sometimes inflammation of the lining of the brain and spinal cord. Heart lesions can occur in infected birds and oftentimes these are not visible to the naked eye and are only seen on microscopic examination. The
+virus has been documented in over 250 species of birds and is spread mostly through the bite of an
+infected mosquito. 
+
+A survey was conducted in 2018 and 2019 sampling <a href="https://en.wikipedia.org/wiki/Ruffed_grouse">Ruffed Grouse</a> in Michigan, Minnesota and Wisconsin. A collection of birds was sampled in each state and season, and the number of birds with confirmed cases of West Nile Virus was recorded.
+
+
+## Data Input
+
+```{r}
+grouse <- read_csv("wnv_grouse.csv", show_col_types=FALSE)
+kable(grouse)
+```
+
+
+----
+
+## QUESTION 1
+
+Perform some data handling to do the following:
+
+* Convert the `Season` variable into a `factor` variable (coded as numeric).
+* Create a new variable called `No_WNV` comprised of the difference between the number of Samples and the number of WNV cases.
+
+
+```{r}
+grouse <- grouse |>
+  mutate(
+    Season = factor(Season),
+    No_WNV = Samples - WNV_Cases)
+
+kable(grouse)
+```
+
+
+
+## QUESTION 2
+
+Fit a logistic regression modeling the likelihood a Ruffed Grouse has been diagnosed with West Nile Virus as a function of the Season and State (note the response is recorded in a summarized format). 
+
+```{r, message=FALSE}
+grouse.fit <- glm(cbind(WNV_Cases, No_WNV) ~ Season + State,
+                  data = grouse,
+                  family = binomial(link = logit))
+
+summary(grouse.fit)
+```
+
+
+
+
+## QUESTION 3
+
+Fit an intercept only model (null model) and use it to test for significance of the model fit in Question 2.
+
+```{r}
+grouse.null <- glm(cbind(WNV_Cases, No_WNV) ~ 1,
+                   data = grouse,
+                   family = binomial(link = logit))
+
+anova(grouse.null, grouse.fit) 
+```
+
+**Due to the p-val of 2.2e-16, the predictors Season and State are significant predictors, thus the full model is more accurate than the reduced model.**
+
+
+
+
+
+## QUESTION 4
+
+Approximately what percentage of the deviance in the probability of Ruffed Grouse with West Nile Virus is explained by the model with State and Season?
+
+```{r}
+null_dev <- deviance(grouse.null)
+resid_dev <- deviance(grouse.fit)
+pseudo_R2 <- (1 - resid_dev / null_dev) * 100
+pseudo_R2
+```
+
+**About 92% of the deviance in the probability of Ruffed Grouse with West Nile Virus is explained by the full model that includes State and Season.**
+
+
+
+
+
+## QUESTION 5
+
+Can any of the predictor variables be removed from the full model based on Likelihood Ratio Tests?
+
+```{r}
+drop1(grouse.fit, test = "LRT")
+```
+
+**Based on this table, both Season (p = 1.449e-05) and State (p < 2.2e-16) are statistically significant predictors. Removing either term significantly increases deviance, indicating a less accurate model fit.**
+
+
+
+
+
+
+## QUESTION 6
+
+Which of the two seasons appears to have higher rates of West Nile Virus? Justify based on the fitted model.
+
+```{r}
+new_season <- data.frame(
+  Season = c("2019", "2018"),
+  State = "Michigan"
+)
+
+predict(grouse.fit, newdata = new_season, type = "response")
+```
+
+**Since 0.2518 > 0.1685, the model predicts a higher rate of West Nile Virus in 2018.**
+
+
+
+
+## QUESTION 7
+
+Which state appears to have the highest percentage of Ruffed Grouse infected with West Nile Virus (again, justify based on the fitted model).
+
+
+```{r}
+new_state <- data.frame(
+  Season = "2019",
+  State = c("Michigan", "Minnesota", "Wisconsin")
+)
+
+predict(grouse.fit, newdata = new_state, type = "response")
+```
+
+**Since 0.4311 is the largest, Wisconsin has the highest predicted infection rate.**
+
+
+

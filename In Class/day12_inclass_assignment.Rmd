@@ -1,0 +1,161 @@
+---
+title: "In-Class 12: Assignment"
+author: "Natalie Sawtelle"
+output: html_document
+---
+  
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(knitr)
+library(ggfortify)
+library(GGally)
+```
+
+
+## Data
+
+This data is taken from:
+
+> Triola, M. M., & Triola, M. F. (2006). Biostatistics for the Biological and Health Sciences. Boston, MA: Pearson.
+
+Researchers have studied bears by anesthetizing them in order to obtain vital measurements, such as age, sex, length and weight (do not try this at home, because checking the length or sex of a bear not fully anesthetized can be an unpleasant experience). Because most bears are quite heavy and difficult to lift, researchers and hunters experience considerable difficulty actually weighing a bear in the wild. We aim to build a predictive model on bear weight using other variables in the data.
+
+The full data are provided in the file `bear_measurements.csv` and contain the following variables.
+
+
+* `Age` - The age of the bear, recorded in months.
+* `Month` - The month the observation was collected. 
+* `Sex` - the biological sex of the bear, 0=male and 1=female.
+* `Head_Length` - The length of the bear's head, in inches.
+* `Head_Width` - The width of the bear's head, in inches.
+* `Neck_Circumference` - The distance around the bear's neck, in inches. 
+* `Body_Length` - The length of the bear's body, in inches.
+* `Chest_Circumference` - The distance around the bear's chest, in inches. 
+* `Weight` - The bear's weight, in pounds.
+
+### Goals for this assignment
+
+#### Statistical Goals
+
+The assignment **reviews the material** for the previous classes while also providing you the opportunity to perform some prediction and study *effect size*. 
+
+
+### Directions
+
+Below are 5 questions to answer. You should note that the amount of coding in this assignment is fairly *light*. We have provided much of the code needed for the assignment. You will need to edit and add some code in a few spots, but this assignment is **primarily about statistical questions**.
+
+### Data Wrangling (provided)
+
+```{r}
+bear_data <- read_csv("bear_measurements.csv",
+                      show_col_types=FALSE)
+```
+
+Last week, we saw through a residual analysis that the response variable in the bear data likely needed to be transformed. For today, we consider a cubed root transformation on the weight. That is,
+
+$$\sqrt[3]{y} = y^{1/3}$$
+and note we can undo the transformation by raising to the third power:
+$$y = (\sqrt[3]{y})^3 = (y^{1/3})^3$$
+
+-----------
+
+### Question 1
+
+We fit two models to these data below (both using the cubed root transformation). Which of these two models would generate **more precise** predictions of the cubed root of Bear weights, and why?
+
+```{r}
+model1 <- lm(Weight^(1/3) ~ Head_Length + Head_Width + Neck_Circumference +
+                 Body_Length + Chest_Circumference, data=bear_data)
+summary(model1)
+
+model2 <- lm(Weight^(1/3) ~ Neck_Circumference +
+                 Body_Length + Chest_Circumference, data=bear_data)
+summary(model2)
+```
+
+**Model 1 uses more precise predictions of the cubed root of Bear weights because it uses the most predictor variables.**
+
+
+
+### Question 2
+
+Using `model1` from Question 1 to find a 99% prediction interval for the weight of a bear with a head length of 15 inches, head width of 8 inches, neck circumference of 23.5 inches, body length of 68 inches and a chest circumference of 44 inches.
+
+The following code creates a `data.frame` with the predictor variables assigned the specific values given above.
+
+```{r}
+fictional_bear <- data.frame(Head_Length = 15, 
+                               Head_Width = 9,
+                               Neck_Circumference = 23.5, 
+                               Body_Length = 68,
+                               Chest_Circumference = 44)
+```
+
+In the code chunk below, build a **99\% prediction interval for the bear weight** of the fictional bear and interpret this interval in context.  (remember, to un-transform)
+
+```{r predict}
+head(3^predict(model1, 
+        newdata=fictional_bear,
+        interval="prediction",
+        level = 0.99))
+```
+
+**With 99% confidence, we predict the bear weight with a head length of 15 inches, a head width of 9 inches, a neck circumference of 23.5 inches, a body length of 68 inches, and a chest circumfrence of 44 inches will have a weight between 699.91 and 2438.91 lbs.**
+
+
+### Question 3
+
+Is the prediction for the hypothetical bear in Question 2 the result of extrapolation? See if you can tell by looking at the scatterplot matrix below:
+
+```{r, fig.width=10, fig.height=10, message=FALSE, warning=FALSE, echo=FALSE}
+ggpairs(bear_data, columns=4:9)
+```
+
+**No the result of Question 2 is not due to extrapolation. Each inch value used for each variable is found within the data set.**
+
+
+### Question 4
+
+In the code chunk below build a **99\% *confidence* interval for the mean weight of bears** with the same demographics as the fictional bear in Question 2 and interpret this interval in context. How does this interval compare to the interval in Question 2, and why is the interpretation different? (again, remember to un-transform)
+
+```{r}
+head(3^predict(model1, 
+        newdata=fictional_bear,
+        interval="confidence",
+        level = 0.99))
+```
+
+**With 99% confidence, the mean weight of all bears with a head length of 15 inches, head width of 9 inches, neck circumference of 23.5 inches, body length of 68 inches, and chest circumference of 44 inches is between approximately 1032.36 and 1653.51 lbs.**
+
+
+### Question 5
+
+Suppose the bear's chest circumference was 45 instead of 44 inches. Build a 95% prediction interval for the bear's weight in both situations, so we can compare the two intervals. 
+
+This code chunk creates a `data.frame` with the information for the two fictional counties. Note that all variable values are the same except for the `Chest_Circumference`.
+
+```{r}
+fictional_bears <- data.frame(
+  Head_Length = c(15,15), 
+  Head_Width = c(9,9),
+  Neck_Circumference = c(23.5,23.5), 
+  Body_Length = c(68,68),
+  Chest_Circumference = c(44,45) )
+```
+
+In the code chunk below, build **95\% prediction intervals for the weights** of the two fictional bears ("un"-transform the response).
+
+```{r}
+head(3^predict(model1, 
+        newdata=fictional_bears,
+        interval="prediction",
+        level = 0.95))
+```
+
+How do the intervals compare? What does this suggest about the effect of chest circumference on predicting bear weights?
+
+**The bear with a larger chest circumference, 45-inches, has a slightly higher predicted weight and a prediction interval shifted upward compared to the bear with a 44-inch chest. This suggests that chest circumfrence is acurate in predicting bear weights.**
+
+
+

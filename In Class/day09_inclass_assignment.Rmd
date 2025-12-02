@@ -1,0 +1,85 @@
+---
+title: 'Day 09 Assignment'
+author: "Natalie Sawtelle"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(knitr)
+library(GGally)
+```
+
+## Introduction
+
+A sample was collected to study the relationship between foot length, foot width and body height. Researchers wanted to study how foot length and foot width can predict body height. 
+
+The file `height.csv` contains the observations and all necessary code has been provided in this Rmd (you need to answer the questions). Data in the file includes:
+
+* BH: body height (cm)
+* FL: foot length (cm)
+* FW: foot width (cm)
+
+
+```{r, warning=FALSE, message=FALSE}
+height <- read_csv("height.csv", show_col_types=FALSE)
+```
+
+
+### Task 1
+
+A scatterplot matrix of all variables is provided below, with the response variable in the last row/column of the matrix.  Describe any patterns you see.
+ 
+```{r}
+ggpairs(height, columns = c(2:3,1))
+```
+
+**Foot length and foot width, foot length and body height, and body height and foot width have strong correlations. The relationships appear fairly linear, which supports using a linear regression model. Each distribution is approoximately bell shaped so they are about normal.**
+
+
+
+### Fitted Model
+
+The code below fits the multiple regression modeling the body height as a function of foot length and foot width, and displays the results of the model fit. 
+
+```{r}
+height_model <- lm(BH ~ FL + FW , data=height)
+summary(height_model)
+```
+
+
+
+### Task 2
+
+Interpret the intercept term for the fitted model.  Does it contextually make any sense? Justify your answer.
+
+**The intercept 48.75 cm represents the predicted body height when both foot length and foot width are equal to zero. Contextually this does not make sense because foot lengths and widths equal to zero are impossible.**
+
+
+
+
+
+### Task 3
+
+Interpret the estimated regression slope coefficients for both foot length and foot width. 
+
+**When foot width is held constant, for every 1 cm increase in foot length the expected body height will increase by 3.4646 cm.**
+
+**When foot length is held constant, for every 1 cm increase in foot width the expected body height will increase by 3.8218 cm.**
+
+
+
+
+### Part 4
+
+Interpret the residual standard error and multiple $R^2$. 
+
+**On average, the model predicted heights that are about 2.569 cm off of the actual height.**
+
+**Approximately 83.5 cm of the variation in heights can be attributed to the model with  foot length and foot width as the predictors.**
+
+
+
+
+

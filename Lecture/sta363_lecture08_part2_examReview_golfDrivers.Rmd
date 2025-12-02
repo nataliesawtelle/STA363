@@ -1,0 +1,172 @@
+---
+title: "Lecture 08: Review of DOE - Part 2"
+author: "Natalie Sawtelle"
+date: "2025-09-22"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggfortify)
+library(emmeans)
+library(knitr)
+```
+
+
+## Before we start
+
+We will work this assignment as a big group. We picked the example and the style to complete the assignment (live coding) based on student feedback.
+
+First, note we load all the relevant libraries in the first `setup` code chunk.
+
+
+## Data Description
+
+Golf is one of the most popular recreational sports in the United States. The driver is one of the more important clubs as a golfer will generally use it on the first shot of a hole when wishing to hit the ball off a tee for very long distances. The act of hitting a golf ball requires precision, skill and strength but the club can influence a shot as well. A golf manufacturer is looking to improve their product line of golf drivers to increase shot distance. Four protoype drivers are considered:
+
+* **Driver 1**: mass of 270g and a length of 117.5cm
+* **Driver 2**: mass of 290g and a length of 116.2cm
+* **Driver 3**: mass of 310g and a length of 115.0cm
+* **Driver 4**: mass of 340g and a length of 113.4cm
+
+The manufacturer recruited 6 golfers to test each of the four drivers. Each golfer used each driver once, in a randomly assigned order, and the manufacturer recorded several variables related to the shot. Of particular interest to the manufacturer is determining if certain drivers result in longer distance shots.
+
+Perform a complete statistical analysis assessing the manufacturer’s questions.
+
+
+
+## Design Type
+
+What type of design is this?
+
+**One way Block design**
+
+* Experimental units = clubs
+* Response = totdist (total driving distance)
+* Factor = club (driver type)
+    + Factor levels = 1, 2, 3, 4
+    + Treatments = Driver 1, 2, 3, 4
+* Block = golfer (6 golfers participating in the experiment)
+    + each golfer has a different skill set, thus their ability to diver the ball is directly effected by their skill set
+    + golfer is a known effect which we are **NOT** interested in, but we need to account for it in our model
+* Control
+    + Control group (not really here)
+    + **Randomization = clubs assigned randomly**
+    + **Replication = multiple observations per treatment (club type)**
+    + Every golfer gets every club
+    + Blinding (not realy here)
+
+
+
+## Data Input
+
+The following is provided to you.
+
+```{r golf data}
+golf_data <- read_csv("golf_driver.csv",
+                      show_col_types = FALSE)
+glimpse(golf_data)
+# all variables are listed as <dbl> -- meaning all variables are currently numeric
+```
+
+## Data Processing
+
+Note that both the `club` and `golfer` variables are recorded as numbers. Both **must be** categorical, or `factor`, variables to perform the correct analysis.
+
+Perform some data munging to convert both to `factor` variables.
+
+```{r golf munging}
+# update the dataset --> data <- data |> mutate()
+# labels = c() <-- indicates a list of objects
+
+golf_data <- golf_data |> 
+  mutate(club = factor(club,
+                       labels = c("Driver 1", "Driver 2", "Driver 3", "Driver 4")),
+         golfer = factor(golfer)) |> 
+  # simplify our data - only include variables needed
+  # select() will subset a data frame by columns
+  select(club, golfer, totdist)
+```
+
+
+## EDA
+
+Build a profile plot for each golfer and provide an overall "average" profile across all golfers.
+
+
+```{r golf EDA}
+# aes statement identifies variables used in the layers of the plot
+# aes in the ggplot -- all aes components applied to all layers
+# aes in a specific layer -- only applied to that line of code
+
+# club = factor, totdist = response, golfer = block
+ggplot(golf_data, aes(x=club, y=totdist, group=golfer))+
+  # plotting the individual observations of the BLOCKS
+  geom_point() +
+  geom_line() +
+  # summary across all golfers - override the group statement -- setting the group to 1 ("dummy input)
+  stat_summary(fun=mean, geom="point", size=4, color="blue", group=1)+
+  stat_summary(fun=mean, geom="line", size=2, color="blue", group=1)
+```
+
+
+**ANALYSIS**
+
+* focus on the group output
+* we are not interested in the block effect -- we know driver 1 driving distance is different than driver 2 ect. 
+
+
+## ANOVA Model
+
+Fit the appropriate ANOVA model to this data
+
+```{r create anova}
+golf_anova <- aov(totdist ~ golfer + club, data = golf_data)
+```
+
+## Residual Analysis
+
+Assess the assumptions of this model
+
+```{r residuals}
+autoplot(golf_anova)
+```
+
+## Assumptions
+
+* Independence - design type -- if randomization, then this can be assumed
+* Constant variance - Residuals vs. Fitted -- is there a pattern of fanning
+    + were good if no fanning, problem with constant varience if there is
+* Normality - Normal QQ -- do the residual plots follow the 45-degree line
+    
+**The residuals are fairly evenly spread out, there is no clear pattern or treat of increasing or decreasing variation. The points are not perfectly following the Normal QQ plot trend line, but they are good enough.**
+
+
+## ANOVA Hypothesis Test
+
+Perform the appropriate hypothesis test for this design.
+
+```{r anova}
+summary(golf_anova)
+```
+
+* ignore the block effect!!!
+* only look at the factor of interest
+
+with an F-stat of 4.76 pm 3 and 15 degrees of freedom (p-value = 0.0159)
+
+
+
+## Follow-up Multiple Comparisons
+
+Perform any appropriate follow-up multiple comparisons for this experiment.
+
+
+## ```{r multiple comparisons}
+#mc_model - emmeans9anova model, ~ factor)
+#plot(contrat )
+# tukey no control
+# yes control
+
+

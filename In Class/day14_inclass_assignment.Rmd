@@ -1,0 +1,175 @@
+---
+title: "In-Class 14: Analysis of Covariance (ANCOVA) Assignment"
+author: "Natalie Sawtelle"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(knitr)
+library(GGally)
+library(ggfortify)
+library(emmeans)
+```
+
+
+
+# Overview
+
+This assignment is structured to achieve two goals:
+
+* Review some important elements from design of experiments - The material from the beginning of the class hangs around all semester.
+* Perform an ANCOVA analysis.
+
+
+
+
+# Study
+
+The skin smoothing effects of three different liquid gels were randomly assigned to 60 mature women (20 for each treatment). Treatment applications were performed twice a day over a period of 4 weeks, and the skin roughness parameter (Rz) of all test participants was determined at the beginning (pre-treatment) and at the end of the study (post-treatment) using a computer-aided laser profilometry. The three different liquid gels included a control, a liquid gel moisturizer and another liquid gel that included a 1% concentration of Dead Sea minerals. The researchers want to know the relationship between treatments effects and skin smoothness/roughness.
+
+**Source:** Ma'or Z., Yehuda, S. and Voss, W. (1997), Skin smoothing effects of Dead Sea minerals: comparative profilometric evaluation of skin surface. *International Journal of Cosmetic Science*, 19: 105-110.
+
+Some initial data processing is provided below:
+
+```{r data}
+dead_seaminerals_data <- read_csv("deadseaminerals.csv", show_col_types=FALSE) |>
+  mutate(trt_Grp = factor(trt_Grp, 
+                          levels=c(3,1,2), 
+                          labels=c("Control", "Gel", "Gel w/ minerals")))
+glimpse(dead_seaminerals_data)
+```
+
+# Part 1 - Design elements
+
+## Question 1
+
+You should note that this is a designed experiment.
+
+Identify the design elements of this study:
+
+* What the the experimental units?
+* How many factors are present in this experiment? 
+   + How many factor levels are there? How many treatments?
+* What sort of controls are used in this study?
+
+
+
+**Experimental Units: 60 mature women**
+**Number of Factors: two**
+**Number of Factor Levels: Three for treatment, two for time**
+**Treatments: Control, Gel, Gel with 1% Dead Sea minerals**
+**Controls: A contro group is included, th ewomen are randomly assigned, measurments are standardized**
+
+
+## Question 2 
+
+You should note that for each subject we have a pre and post treatment measure; so this is not a simple One-Way ANOVA. What are some of the potential model types we covered near the beginning of class that are **similar** to this type of design? (hint: ANCOVA is NOT the answer here, this is a review question about the previous design of experiments module). 
+
+**A paired T-test for each group is an example of a similar test to this type of design. It can compare pre vs. post within one group.**
+
+
+
+
+# Part 2 - ANCOVA
+
+In this study we are looking to study how the different treatments may influence the post-treatment skin roughness. However, we must consider the following:
+
+> What if different skin treatments were more (or less) effective on certain types of skin roughness?
+
+For example, what if the control was just as effective as the Gels when skin wasn't that rough, but that with rougher skin, one of the two Gel treatments is more effective.
+
+You should note that the ANOVA analysis from the first part of class does *not* allow for that sort of question to be answered. 
+
+
+## Question 3
+
+Construct a scatterplot matrix with different color points for the three treatment types. Describe the results and what the calculated Pearson Correlation coefficients imply.
+
+```{r plot, message=FALSE}
+
+ggplot(dead_seaminerals_data, aes(x=pre_rough, y=post_rough, color=trt_Grp, shape=trt_Grp)) +
+  geom_point() + 
+  labs(x="Pre-Treatment",
+       y="Post-Treatment",
+       shape="Which treatment type?",
+       color="Which treatment type?") +
+  scale_color_manual(values=c("lightblue", "pink", "lightgreen")) +
+  scale_shape_manual(values=c(16,17,15)) +
+  theme_minimal() +
+  theme(legend.position="bottom")
+```
+
+**It looks like the Dead Sea mineral gel improved skin smoothness more effectively than the control or plain gel.**
+
+
+
+
+
+## Question 4
+
+Fit an ANCOVA model where the response is the post-treatment skin roughness, and the predictors include the pre-treatment skin roughness measure (the "covariate"), the treatment factor, **and** their interaction. Perform a residual analysis to assess the underlying assumptions. 
+
+```{r ancova, warning=FALSE}
+ancova_model <- lm(post_rough ~ pre_rough * trt_Grp, data = dead_seaminerals_data)
+autoplot(ancova_model)
+```
+
+**Constant variance is proved by the random scatter in the residuals vs fitted plot, normality is proven by the normal qq plot since the plots fall on the line.**
+
+
+
+
+
+
+## Question 5
+
+Provide the summary output from your ANCOVA model in question 6. Write the fitted models *for each treatment*, and interpret the results of this model. 
+
+```{r ancova model}
+summary(ancova_model)
+```
+**for the control group: post_rough = −11.4979 + 0.9584(pre_rough)**
+**for the group treated with gel: post_rough = (−11.4979+21.5016) + (0.9584−0.2904)(pre_rough)**
+**for the group treated with minerals: post_rough = (−11.4979+19.7661) + (0.9584−0.4084)(pre_rough)**
+
+
+
+
+## Question 6
+
+Perform a reduced model $F$-test to test if the interaction between Treatments and the initial ("Pre") skin roughness significantly predicts the post roughness.
+
+```{r models}
+full_model <- lm(post_rough ~ pre_rough * trt_Grp, data = dead_seaminerals_data)
+
+reduced_model <- lm(post_rough ~ pre_rough + trt_Grp, data = dead_seaminerals_data)
+
+anova(reduced_model, full_model)
+```
+
+
+**The effect of pre-treatment roughness on post-treatment outcomes differs across treatments.**
+
+
+
+## Question 7
+
+You should have found that the interaction term is significant and thus we have evidence that the effectiveness of each of the treatments depends on the initial "pre" roughness of the skin. When covering Design of Experiments, the natural follow-up to a significant ANOVA result was multiple comparison. The same is true for ANCOVA.
+
+Below is a code chunk. You will need to edit this code with the following:
+
+* Change `eval=FALSE` to `eval=TRUE`.
+* Replace `fitted_ancova_model` with what you call your fitted model from Question 4.
+* Try and interpret the findings of the plot.
+   + What treatments appear to have different effects on post skin roughness?
+
+```{r , eval=FALSE}
+plot(emtrends(ancova_model, ~trt_Grp, var="pre_rough", adjust = "bonferroni") )
+```
+
+**The effectiveness of the treatment depends on the pre-treatment skin roughness. We see that gel with minerals has the highest improvement on skin softness. However, the control group shows the leat improvment."
+
+
+

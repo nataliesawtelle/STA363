@@ -1,0 +1,510 @@
+---
+title: "In-class 17 - Review for Midterm #2"
+author: "Natalie Sawtelle"
+date: "2025-10-27"
+output: html_document
+---
+
+# Goals
+
+This assignment has been structured to review the module on linear regression that we have been discussing for the past 4-ish weeks. Most topics from that module are covered in some aspect in today's activity. 
+
+Further, we will be working this assignment as a class and it should provide a nice review for the take-home portion of the midterm exam.
+
+
+```{r setup, include=FALSE}
+## Code that loads the packages we will use 
+##   without output to the screen
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggfortify)
+library(GGally)
+library(car)
+```
+
+
+
+# Problem Description
+
+Freshwater fish are a major source of mercury to humans. A nutritional scientist was interested in how different human physical traits and their eating habits of fish influence the amount of mercury in their system. One hundred fishermen who regularly eat fish were sampled recording their age (years), weight (kg), height (cm) and the amount of time they have lived near the fishing area (in years) along with the amount of total mercury (element Hg, recorded in mg/g) found in a hair sample. Each fisherman was also surveyed to determine what parts of fish they eat: the muscle tissue only (recorded as a 1) or the whole fish (recorded as a 3), or a mix depending on the circumstances (recorded as a 2). 
+
+Mercury is known to accumulate in the human body, so the nutritionalist is interested in how fish eating habits may influence how physical traits predict the amount of mercury in each subject.  As a follow-up, they wish to know what seems to be the 'best' model to predict mercury levels and to use the 'best' model to predict the mercury levels in an "average" fisherman (average of all physical traits) who only eats muscle tissue.
+
+
+We will perform a **complete** analysis to this problem trying to touch on every topic we've covered over the past month!
+
+
+## Data Entry & Munging
+
+This portion of the assignment is provided.
+
+```{r}
+# read in the data
+fishermen_hg <- read_csv("fishermen_mercury.csv",
+                         show_col_types = FALSE)
+# data handling
+# categorical levels make sense
+fishermen_hg <- fishermen_hg |>
+  mutate(fishpart = factor(fishpart,
+                           levels=c(1,2,3),
+                           labels=c("Muscle Tissue",
+                                    "Sometimes Whole",
+                                    "Whole Fish")) )
+names(fishermen_hg)
+```
+----------
+
+# A Few Conceptual Questions
+
+## Categorical variables
+
+The description of the problem includes a categorical variable (`fishpart`).  How many main effect predictor variables will result due to the inclusion of this variable?
+
+
+**ANSWER: 2 indicators**
+
+* If we have a categorical variable with k categories -- we need k-1 indicators
+
+
+
+
+## Question about interaction
+
+
+Why is interaction needed in this analysis? 
+
+**ANSWER: interested in how fish eating habots amy *influence* jow physicaltraits predict the amount  of mucury in each subject.**
+
+* An interaction model investigates how categorical variable INFLUENCES the relationship between quantitative predictors and the response.
+* Two types of influence
+  * Main effect influence intercept term
+    + the shifts coefficient estimate for the categorical variable shifts the intercept
+  * Interaction effect influence both the intercept term and the slope term
+    + the coefficient estimate for the categorical variable shifts the intercpt
+    + the coefficient estimate for the interaction between the categorical variable and the quantitaticve predictor affects the slope term
+  
+  
+
+-------
+
+# Preliminary Analysis
+
+## EDA
+
+Perform an exploratory data analysis were the `fishpart` variable is used to color the points.
+
+```{r, fig.height=8, fig.width=10, warning=FALSE, message=FALSE}
+
+# EDA for regression -- ggpairs() to create the scatter plot matrix
+# Want the responce variable to be last -- This helps us to focus on the relationship between predication and response
+# Also creates predictions on the x-axis and response on rhe y-axis all within the final row
+# Correlations on the final column
+
+# Categorical variable to color by
+# mapping = (aes(color=cat))
+
+ggpairs(fishermen_hg, columns=c(1, 2, 3, 4, 5 ,6),
+        mapping=aes(color=fishpart, alpha = 0.3))
+
+```
+
+
+* Look at relationship between pedictors and the response
+**ANSWER: Weight has a slight/mederate positive relationship with TotHG, r = 0.428. Additionally it seems like fish part is affecting that relationship -- different correlations for the three categories**
+
+* look at the distribution of the response
+**ANSWER: TotHg appears right skewed - we many need to transform**
+
+* look at correlations between the predictors -- multicollinearity
+**ANSWER: Age and Res_time have a moderate positive correlation**
+
+
+
+
+
+## Fit interaction model
+
+Fit the model necessary to answer the primary research question. Assess all the module assumption and perform any transformations of the response variable (if necessary).
+
+
+**Fit the interaction model**
+
+```{r}
+fish_full_model <- lm(TotHg ~ (age + res_time + height + weight) * fishpart, data = fishermen_hg)
+```
+
+**Residual Plot**
+
+```{r}
+autoplot(fish_full_model)
+```
+
+**ANSWER: Independence**
+* based on the data description -- we can assume the sampling was done apppropiately such that the observations  
+
+**ANSWER: Linearity**
+* Residuals vs. Fitted -- maybe slight curve here
+
+**ANSWER: Equal Variance Assumption**
+* Scale-location plot shows increase variability -- indicates issues
+* Residuals vs. fitted shows some fanning of the residuals
+
+**ANSWER: Normality**
+* Normal qq-plot 
+
+**ANSWER: We should try a transfermation of the model - log10() sqrt()**
+
+
+
+---------
+
+# Initial Findings
+
+## Output for analysis
+
+Provide the `summary()` output for the model fit above.
+
+```{r}
+fish_log10_model <- lm(log10(TotHg) ~ (age + res_time + height + weight) * fishpart, data = fishermen_hg)
+autoplot(fish_log10_model)
+```
+
+```{r}
+fish_sqrt_model <- lm(sqrt(TotHg) ~ (age + res_time + height + weight) * fishpart, data = fishermen_hg)
+autoplot(fish_sqrt_model)
+summary(fish_sqrt_model)
+```
+
+
+## Model Significance.
+
+Does the model significantly predict mercury levels?
+
+* F-statistic: 2.735 on 14 and 85 DF,  p-value: 0.002253
+
+**ANSWER: yes, with F-statistic: 2.735 on 14 and 85 DF,  p-value: 0.002253, the model with the intercation of fishparts and the age, res_time, height and weight of fishermen predicts the square root total mercury levels**
+
+
+
+
+## Model Explanatory Value
+
+What percentage of the variability in the response is explained?
+
+* Multiple R-squared:  0.3105,	*Adjusted R-squared:  0.197* 
+
+**ANSWER: Approximately 20% of the variability in the square root of total mercury levels is explained by the model (based adj-$R^2$) **
+
+
+
+
+## Model precision
+
+On average, what is the error of the predicted model?
+
+* Residual standard error: 0.6566 on 85 degrees of freedom
+  * Average error for the model -- how off are our predictions compared to the observed response
+  * Report based on the unit of measure for the response
+
+**ANSWER: On average, our model predicts total square root total mercury with an error of 0.6566 $\sqrt{mg/g}$ **
+
+
+
+
+## Model interpretation
+
+Interpret the intercept in that model.
+
+* (Intercept)                      -0.52364    4.27451  -0.123   0.9028
+* Default category = Muscle tissue
+
+**ANSWER: For a fisherman who is zero years old, who has lived in the village for zero years, who has a height of 0 cm and a weight of 0 kg, and who only eats the muscle tissue of the fish, we expect the mercury levels to be -0.52364 $\sqrt{mg/g}$ **
+
+
+
+
+## Model interpretation #2
+
+Interpret the coefficient on the variable `weight`.
+
+* weight                            0.07835    0.03347   2.341   0.0216 *
+
+**ANSWER: Holding all other units constant, for every one kg increase in weight we expect the mean mercury level in the hair of the fisherman who onky eats muscle tissue of fish to increase by 0.07835 square root mg/g.**
+
+
+
+## Model interpretation #3
+
+Interpret the coefficient on the variable `fishpartWhole Fish:weight`.
+
+* weight:fishpartWhole Fish         0.09555    0.07312   1.307   0.1948
+
+**ANSWER: Holding all other units constant, for every one kg increase in weight we expect the eman mercury level in th e hair of a fisherman who only eats whole fish to increase by (0.07835+0.09555)= 0.1739 square root mg/g**
+
+
+
+
+
+## Multicollinearity?
+
+Are there any concerns about your ability to interpret the coefficients in the model? Check by briefly looking at the EDA and calculating the VIFs for these predictors.
+
+```{r}
+car::vif(fish_sqrt_model)
+```
+**ANSWER: VIF is hard to interpret with CATEGORICAL variables**
+
+* let's proceed to see if the interaction terms are even nessessary before diving into this issue.
+
+
+------
+
+# Testing the primary hypothesis
+
+We will now perform an analysis to test the primary research question.
+
+## Is the interaction meaningful?
+
+Use a reduced model $F$-test to determine if the inclusion of an interaction of `fishpart` improve on a model that only includes the main effects.
+
+
+
+**First, we need to fit the reduced model, and then the `anova()` function.**
+
+```{r}
+# reduced model would be all of the main effects with NO interactions
+# rediced model test can only compare models with the same response -- continue using transformed response
+
+fish_sqrt_main <- lm(sqrt(TotHg) ~ age+res_time+height+weight+fishpart, data = fishermen_hg)
+
+# Reduced model test 
+# anova(reduced model, complex model)
+
+anova(fish_sqrt_main, fish_sqrt_model)
+summary(fish_sqrt_main)
+```
+Reduced model F-Test
+* are the extra variables needed? 
+  + a 
+
+Res.Df    RSS Df Sum of Sq      F Pr(>F)
+1     93 42.327                           
+2     85 36.645  8     5.682 1.6475 0.1235
+
+**ANSWER: NO! With a f-stat: 1.6475 on 8 and 85 df and a p-val of 0.01235, we do NOT have enough evidence to say the inclusion of the interaction between fish parts and the other varibales (age, res time, height and weight)**
+
+
+
+
+## Does fishpart predict mercury levels at all?
+
+Perform a reduced model $F$-test to determine if the inclusion (as an interaction or main effect) of the `fishpart` variable improves on the prediction of mercury levels compared to a model with just the numeric variables.
+
+
+**Compared to the interaction model**
+
+```{r}
+
+```
+
+**ANSWER HERE**
+
+
+
+**Compared to the main effects model**
+
+
+```{r}
+
+```
+
+
+**ANSWER HERE**
+
+**ANSWER HERE**
+
+
+
+
+
+
+---------
+
+# Finding a good model
+
+From this point on, we will only be using the model with the numeric (covariate) predictor variables.
+
+## Model appropriateness
+
+Perform a residual analysis on the model used above with just the numeric predictor variables (we have removed the categorical predictor, we should check to make sure the model meets assumptions).
+
+```{r}
+
+```
+
+
+**ANSWER HERE**
+
+**ANSWER HERE**
+
+**ANSWER HERE**
+
+
+
+
+## Model Output
+
+Provide the full output for the model with just the numeric predictors.
+
+```{r}
+
+```
+
+
+## Model Significance?
+
+Is the model with just the numeric covariates predictive of mercury levels?
+
+**ANSWER HERE**
+
+
+
+
+## Model Explanatory Value
+
+What percentage of the variability in the response is explained?
+
+**ANSWER HERE**
+
+
+
+## Multicollinearity?
+
+Is there any concern about meaningfully interpreted the coefficients and marginal $t$-test in the model with just the numeric covariances?
+
+```{r}
+
+```
+
+**ANSWER HERE**
+
+
+
+## Conditional Significance?
+
+Which predictor variables are <u>conditionally significant</u> and which are not?  Justify and explain.
+
+**ANSWER HERE**
+
+**ANSWER HERE**
+
+**ANSWER HERE**
+
+**ANSWER HERE**
+
+
+
+# Any unusual observations
+
+We should check if any unusual observations are driving the results of our findings. 
+
+## Leverage points
+
+Determine any (overly) high leverage points.
+
+
+```{r}
+
+```
+
+**ANSWER HERE**
+
+
+
+
+
+
+## Influential Points
+
+Are any points overly influential? Use Cook's D to determine if any points are overly influential, and if so, explore how they impact the model.
+
+**Let's look at the expanded residual plot**
+
+```{r, fig.height=7}
+
+```
+
+**ANSWER HERE**
+
+
+
+-------
+
+# Model Simplification
+
+At this point we have determined a few key things:
+
+* Modeling the transformed response variable is needed to meet model assumptions.
+* The model does predict mercury levels.
+* The inclusion of `fishpart` seems unnecessary.
+* There are no unusual observations *driving* the results.
+* We may have some variables that are not needed in the model.
+
+## Reduced Model $F$-test
+
+Perform a reduced model $F$-test to determine if the collection of conditionally insignificant variables in the numeric predictor only model can be removed.
+
+
+```{r}
+
+```
+
+
+**ANSWER HERE**
+
+
+
+## Final Model
+
+Based on all of the above, which model appears to be the best?  What percentage of variability in the response is explained by this model?
+
+**ANSWER HERE**
+
+```{r}
+
+```
+
+
+**ANSWER HERE**
+
+
+## Conceptual Connection
+
+What do you notice about the `Multiple R-squared` value to the `Adjusted R-squared` value in the selected model. In particular, what do you notice about the relationship between those two values in that model compared to some of the other models?
+
+**ANSWER HERE**
+
+
+
+## Prediction
+
+Use the selected model to predict the mercury levels of an "average" fisherman who only eats the muscle tissue, with a 99% prediction interval.
+
+
+
+
+
+```{r}
+
+```
+
+
+
+
+```{r}
+
+```
+
+**ANSWER HERE**
+
+

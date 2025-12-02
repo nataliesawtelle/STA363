@@ -1,0 +1,207 @@
+---
+title: "Homework 5"
+author: "Natalie Sawtelle"
+date: "2025-11-19"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(knitr)
+library(ggfortify)
+library(GGally)
+library(car)
+library(StepReg)
+```
+
+
+# Problem 1: Body
+
+High-Density Lipoprotein (HDL) cholesterol is considered a measure of "good" cholesterol and it will serve as our response of interest for this analysis as a researcher is interested in determining the best way to predict this value using the full blood data. Explore the data and fit a full main effects model to the HDL variable. Assess all assumptions necessary before performing all model selection procedures discussed in class, using all 3 metrics of goodness of fit and all 4 strategies. Fully compare the models across the methods/metrics and determine the unique reduced models. Determine which of these models has the smallest RMSE and MAE based on a LOOCV approach. Propose an optimal model and use your chosen model to predict the HDL value with a 95% prediction interval for both females and males with average ages and body measurements. 
+
+
+# Data
+
+```{r body data}
+body <- read_csv("Body Data Full.csv")
+glimpse(body)
+```
+
+# Mutate Sex to be Factor
+
+```{r body mutate}
+body <- body %>% mutate(SEX = factor(SEX, levels = c(0,1), labels = c("F","M")))
+```
+
+# Full Main Effects Model
+
+```{r }
+full_body_model <- lm(HDL ~ AGE + SEX + PULSE + SYSTOLIC + DIASTOLIC + WHITE + PLATE + WEIGHT + HEIGHT + WAIST + ARM_CIRC + BMI,
+                      data=body)
+
+autoplot(full_body_model)
+summary(full_body_model)
+```
+
+**In the full main-effects model, the statistically significant predictors of HDL are AGE, SEX, and WAIST. All other predictors are not significant after controlling for the others. Conditional interpretations describe how each significant predictor affects HDL while holding all other predictors constant.**
+
+**Linearity: There is a slight curve pattern, however most points are around zero.**
+**Normality: Seems to be a slight devienation from the line, however nothing to worry about so the model is approximately normal.**
+**Equal variance: the variance of residuals increases a bit at higher fitted values, however it is not that bad.**
+**Independence: we can assume from the description that the values are independent.**
+
+# 
+
+```{r}
+step <- stepwise(HDL ~ AGE + SEX + PULSE + SYSTOLIC + DIASTOLIC + WHITE + PLATE + WEIGHT + HEIGHT + WAIST + ARM_CIRC + BMI,
+                      data=body,
+                          strategy = c("forward", "backward", "bidirection"),
+                          metric = c("AIC", "BIC", "adjRsq") )
+
+plot(step, strategy="bidirection", process="detail")
+```
+
+**AIC, BIC, and adjR^2 all suggest differnet models. AIC suggests only using three models while adjR^2 suggests using many. We should run LOOCV RMSE and MAE to choose which model is best.**
+
+# Subsets
+
+```{r}
+subsets <- stepwise(HDL ~ AGE + SEX + PULSE + SYSTOLIC + DIASTOLIC + WHITE + PLATE + WEIGHT + HEIGHT + WAIST + ARM_CIRC + BMI,
+                      data=body,
+                             strategy = "subset",
+                             metric = c("AIC", "BIC", "adjRsq") )
+
+subs_r2a <- subsets$subset$adjRsq
+subs_bic <- subsets$subset$BIC
+subs_aic <- subsets$subset$AIC
+```
+
+# LOOCV
+
+```{r}
+loocv_lm_error <- function(model) {
+  loocv_pred_errors <- residuals(model)/(1 - hatvalues(model) )
+  list(RMSE = sqrt(mean(loocv_pred_errors^2) ),
+       MAE = mean(abs(loocv_pred_errors) ) )
+}
+```
+
+```{r}
+loocv_lm_error(full_body_model)
+loocv_lm_error(subs_r2a)
+loocv_lm_error(subs_bic)
+loocv_lm_error(subs_aic)
+```
+
+**AIC has the smallest MAE = 10.10857 and RMSE = 13.71753, therefore we should use this model in our prediction since it predicts closest to the real data.**
+
+# Predicting
+
+```{r}
+avg_body <- body |>
+  group_by(SEX) |>
+  summarize(AGE = mean(AGE),
+            PULSE = mean(PULSE),
+            SYSTOLIC = mean(SYSTOLIC),
+            DIASTOLIC = mean(DIASTOLIC),
+            WHITE = mean(WHITE),
+            PLATE = mean(PLATE),
+            WEIGHT = mean(WEIGHT),
+            HEIGHT = mean(HEIGHT),
+            WAIST = mean(WAIST),
+            ARM_CIRC = mean(ARM_CIRC),
+            BMI = mean(BMI))
+
+predict(subs_aic, newdata=avg_body, interval="prediction")
+```
+
+**An average female is predicted to have an HDL level of about 60, with a 95% prediction interval of roughly 38 to 83 mg/dL. An average male is predicted to have an HDL level of about 52, with a 95% prediction interval of roughly 29 to 76 mg/dL.**
+
+
+
+# Problem 2: Football
+
+In the game of American Football (not to be confused with fútbol, or fußball, or foosball), a ¨Field Goal" is one of the more common ways a team scores points. A kicker attempts to kick the ball between two upright post, the outcome of this events if either a Good field goal or a Missed field goal.  
+
+In this question we will explore the odds, and proportion, of field goal attempts based on other variables in the data. The record of 1039 field goal attempts from the 2008 season is available in the file: nfl2008_fga.csv. In this assignment we will need the following variables: 
+
+qtr - the Quarter in which the field goal was attempted (an NFL game is typically split into 4 quarters and Overtime [OT] when games at tied as the end of the fourth quarter).
+homekick - an indicator variable indicating if the team attempting the kick is home or not (0 = visiting or away team, 1 = home team).
+distance - the distance (in yards) of the field goal attempt.
+GOOD - an indicator variable indicating if the field goal attempt was successful (1) or not (0).
+
+
+# Data
+
+```{r football data}
+football_data <- read_csv("nfl2008_fga.csv")
+glimpse(football_data)
+```
+
+# Mutate
+
+```{r}
+football_data <- football_data %>%
+  mutate(
+    qtr      = factor(qtr, levels = c(1,2,3,4), labels = c("first quarter","second quarter", "third quarter", "fourth quater")),
+    homekick = factor(homekick, levels = c(0,1), labels = c("away team","home team")),
+    GOOD     = factor(GOOD, levels = c(0,1), labels = c("not successful","successful")),
+    distance = as.integer(distance)
+  )
+
+glimpse(football_data)
+```
+
+# Part 1
+
+```{r}
+xtabs(~ GOOD, data = football_data)
+```
+
+**The odds of making a feild goal are 900/139 = 6.47. This means that the odds of a successful field goal were about 6.47 to 1. In context, a kicker was over six times as likely to make a field goal than to miss one.**
+
+# Part 2
+
+```{r}
+xtabs(~ homekick + GOOD, data = football_data)
+```
+
+**The odds of the away team making a feild goal are 464/61 = 7.61 to 1, while the odds of the home team making a feild goal are 436/78 = 5.59 to 1. Since there does not seem to be a larger difference here home vs. away status does not appear to strongly predict the likelihood of making a field goal.**
+
+# Part 3
+
+```{r}
+xtabs(~ qtr + GOOD, data = football_data)
+```
+
+**The odds of Quarter one are 192/22 = to 1, the odds of quarter two are 316/59 =  to 1, the odds of quarter three are 154/28 =  to 1, and the odds of quarter four are 226/29 =  to 1. Since there does not seem to be a larger difference in quarter odds, it does not appear to strongly predict the likelihood of making a field goal.**
+
+# Part 4
+
+```{r}
+distance_summary <- football_data %>%
+  group_by(distance) %>%
+  summarize(
+    attempts = n(),
+    successful = sum(GOOD == "successful"),
+    proportion_success = successful / attempts
+  )
+
+head(distance_summary)
+```
+
+```{r}
+ggplot(distance_summary, aes(x = distance, y = proportion_success)) +
+  geom_point() +
+  geom_smooth(method = "loess", se = FALSE) +
+  labs(
+    title = "Proportion of Successful Field Goals by Distance",
+    x = "Distance (yards)",
+    y = "Proportion Successful"
+  ) +
+  theme_minimal()
+```
+
+**The scatterplot of distance vs. proportion successful shows a clear downward trend. This pattern indicates that distance is a strong predictor of whether a field goal is successful.**
+

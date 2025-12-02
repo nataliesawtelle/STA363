@@ -1,0 +1,193 @@
+---
+title: "In-Class 18: Assignment"
+author: "Your Name"
+output: html_document
+---
+  
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(knitr)
+library(ggfortify)
+library(GGally)
+library(car)
+library(StepReg)
+```
+
+
+## Data
+
+This data is taken from:
+
+> Triola, M. M., & Triola, M. F. (2006). Biostatistics for the Biological and Health Sciences. Boston, MA: Pearson.
+
+Researchers have studied bears by anesthetizing them in order to obtain vital measurements, such as age, sex, length and weight (do not try this at home, because checking the length or sex of a bear not fully anesthetized can be an unpleasant experience). Because most bears are quite heavy and difficult to lift, researchers and hunters experience considerable difficulty actually weighing a bear in the wild. We aim to build a predictive model on bear weight using other variables in the data.
+
+The full data are provided in the file `bear_measurements.csv` and contain the following variables.
+
+
+* `Age` - The age of the bear, recorded in months.
+* `Month` - The month the observation was collected. 
+* `Sex` - the biological sex of the bear, 0=male and 1=female.
+* `Head_Length` - The length of the bear's head, in inches.
+* `Head_Width` - The width of the bear's head, in inches.
+* `Neck_Circumference` - The distance around the bear's neck, in inches. 
+* `Body_Length` - The length of the bear's body, in inches.
+* `Chest_Circumference` - The distance around the bear's chest, in inches. 
+* `Weight` - The bear's weight, in pounds.
+
+
+### Directions
+
+Below are 6 questions to answer. 
+
+
+### Data Input and initial model (provided)
+
+```{r}
+bear_data <- read_csv("bear_measurements.csv",
+                      show_col_types=FALSE)
+glimpse(bear_data)
+```
+
+Some data processing (we will explain the need for the `CubedRootWeight` later).
+
+
+```{r}
+bear_data <- bear_data |>
+  mutate(Season = case_when(Month %in% c(3,4,5) ~ "Spring",
+                            Month %in% c(6,7,8) ~ "Summer",
+                            Month %in% c(9,10,11) ~ "Fall"),
+         CubedRootWeight = Weight^(1/3) )
+```
+
+Fit a Full main effects model to the cubed root of the weight variable and assess the variables.
+
+```{r}
+initial_bear_model <- lm(Weight ~ Age + Sex + Season + Head_Length + Head_Width + Neck_Circumference + 
+                           Body_Length + Chest_Circumference,
+                         data=bear_data)
+autoplot(initial_bear_model)
+```
+
+## Q1 - Review 
+
+Assess the assumptions for the above model, refit the model with the cubed root transformed response, assess its assumptions -- statistically test if the model significantly predicts the weight of bears and determine the percentage of the variability in cubed root weight that is explained.
+
+```{r}
+full_bear_model <- lm(CubedRootWeight ~ Age + Sex + Season + Head_Length + Head_Width + Neck_Circumference + Body_Length + Chest_Circumference,
+                              data=bear_data)
+
+autoplot(full_bear_model)
+```
+
+
+**We transformed using the cube root to reduce the right skewness and stabilize variance.**
+
+**Linearity -- The residuals appear randomly scattered around zero, suggesting that the linearity assumption is valid.**
+
+**Normality -- The normal Q–Q plot shows points that closely follow the diagonal line, except for mild deviation in the tails. This indicates that the residuals are approximately normal, satisfying the normality assumption.**
+
+**Homoscedasticity -- The spread of residuals is fairly constant across fitted values, with no strong funnel shape. A slight upward trend at higher fitted values may indicate minor heteroscedasticity, but it is not severe enough to threaten model validity.**
+
+**Independence and Influential Points -- Most points cluster within a small leverage range, though observations #13, #20, and #52 show higher leverage. These cases could be influential but do not appear to overly distort the model (no extreme Cook’s distances).**
+
+
+```{r}
+summary(full_bear_model)
+```
+
+
+**The F-statistic: 237.3 on 9 and 44 degrees of freedom and the p-value of 2.2e–16 indicates the overall model is highly significant. The model also explains approximately 97.6% of the variation in the cubed root of bear weight.**
+
+
+
+
+## Q2 - Stepwise Regression
+
+Perform a forward selection, backward elimination and bidirection stepwise procedure using AIC, BIC and adjusted $R^2$ on the bear weight model.  
+
+Note: one limitation of the `stepwise()` function is you cannot transform variables on the fly -- which is why we created the `CubedRootWeight` variable.
+
+
+```{r}
+fit_bear_step <- stepwise(CubedRootWeight ~ Age + Sex + Season + Head_Length + Head_Width + Neck_Circumference + Body_Length + Chest_Circumference,
+                              data=bear_data,
+                              strategy = c("forward", "backward", "bidirection"),
+                              metric = c("AIC", "BIC", "adjRsq"))
+fit_bear_step
+```
+
+
+## Q3 - Stepwise findings
+
+Make a *detailed* plot of stepwise results for the bidirection algorithm. Summarize the findings of the variables selected.
+
+```{r}
+plot(fit_bear_step)
+```
+
+
+**The results show that Chest Circumference was the strongest predictor added to the model, followed by Body Length and Neck Circumference. These three variables produced the largest improvements in AIC, BIC, and adjusted R^2, which tells us that they explain most of the variation in bear weight.**
+
+
+
+## Q4 - Best Subsets
+
+Perform the best subsets algorithm using AIC, BIC and adjusted $R^2$ as measures of goodness-of-fit. What model is best for each measure. How do these models compare to the stepwise findings?
+
+
+```{r}
+fit_bear_step <- stepwise(CubedRootWeight ~ Age + Sex + Season + Head_Length + Head_Width + Neck_Circumference + 
+                            Body_Length + Chest_Circumference,
+                          data=bear_data,
+                          strategy = c("forward", "backward", "bidirection"),
+                          metric = c("AIC", "BIC", "adjRsq") )
+```
+
+
+**AIC prioritizes model fit and predictive accuracy over simplicity, I am choosing it as the preferred metric. The best predictor variables is the combination of Body Length, Chest Circumference, and Neck circumference rather than a simpler one or one with too many perdictors.**
+
+
+
+
+## Q5 - Choose a model
+
+In the above, we looked at different algorithms with three different goodness-of-fit measures, results in twelve models (not necessarily unique). Based on all the information, choose what you deem the best model for the cubed root of bear weights. 
+
+**Important:** there is no correct answer here. We can look at everything holistically and make a decision.
+
+
+
+```{r}
+fit_subs$overview$subset$AIC |>
+  arrange(AIC)
+```
+
+**The best model for predicting the cubed root of bear weight, based on AIC, includes Sex, Neck_Circumference, Body_Length, and Chest_Circumference.**
+
+
+## Q6 - Predicting
+
+Use your chosen model to predict the weight with a 95% prediction interval of female and male bears in the fall with average ages and body measurements.
+
+```{r}
+best_bear_model <- lm(CubedRootWeight ~ Sex + Neck_Circumference + Body_Length + Chest_Circumference,
+                      data = bear_data)
+
+average_bear <- bear_data |>
+  summarize(
+    Sex = mean(Sex),
+    Neck_Circumference = mean(Neck_Circumference),
+    Body_Length = mean(Body_Length),
+    Chest_Circumference = mean(Chest_Circumference))
+
+predict(best_bear_model, newdata = average_bear, interval = "prediction", level = 0.95)^3
+```
+
+
+**We are 95% confident that the true weight of a bear with average characteristics will fall between 124 and 194 pounds, based on the selected model.**
+
+
+
+

@@ -1,0 +1,155 @@
+---
+title: "In-Class 19: Assignment"
+author: "Natalie Sawtelle"
+output: html_document
+---
+  
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(knitr)
+library(ggfortify)
+library(GGally)
+library(car)
+library(StepReg)
+```
+
+
+## Supplied Function
+
+The below function will calculate the LOOCV RMSE and MAE for a linear model. All you need to do is call the function, `loocv_lm_error(fitted_model)` where you specify the name of the `fitted_model`.
+
+```{r}
+loocv_lm_error <- function(model) {
+  loocv_pred_errors <- residuals(model)/(1 - hatvalues(model) )
+  list(RMSE = sqrt(mean(loocv_pred_errors^2) ),
+       MAE = mean(abs(loocv_pred_errors) ) )
+}
+```
+
+
+## Data
+
+This data is taken from:
+
+> Triola, M. M., & Triola, M. F. (2006). Biostatistics for the Biological and Health Sciences. Boston, MA: Pearson.
+
+Researchers have studied bears by anesthetizing them in order to obtain vital measurements, such as age, sex, length and weight (do not try this at home, because checking the length or sex of a bear not fully anesthetized can be an unpleasant experience). Because most bears are quite heavy and difficult to lift, researchers and hunters experience considerable difficulty actually weighing a bear in the wild. We aim to build a predictive model on bear weight using other variables in the data.
+
+The full data are provided in the file `bear_measurements.csv` and contain the following variables.
+
+
+* `Age` - The age of the bear, recorded in months.
+* `Month` - The month the observation was collected. 
+* `Sex` - the biological sex of the bear, 0=male and 1=female.
+* `Head_Length` - The length of the bear's head, in inches.
+* `Head_Width` - The width of the bear's head, in inches.
+* `Neck_Circumference` - The distance around the bear's neck, in inches. 
+* `Body_Length` - The length of the bear's body, in inches.
+* `Chest_Circumference` - The distance around the bear's chest, in inches. 
+* `Weight` - The bear's weight, in pounds.
+
+
+### Data Input and initial model (provided)
+
+```{r}
+bear_data <- read_csv("bear_measurements.csv",
+                      show_col_types=FALSE)
+```
+
+Some data processing.
+
+```{r}
+bear_data <- bear_data |>
+  mutate(Season = case_when(Month %in% c(3,4,5) ~ "Spring",
+                            Month %in% c(6,7,8) ~ "Summer",
+                            Month %in% c(9,10,11) ~ "Fall"),
+         CubedRootWeight = Weight^(1/3) )
+```
+
+We fit a Full main effects model to the cubed root of the weight variable.
+
+```{r}
+full_bear_model <- lm(CubedRootWeight ~ Age + Sex + Season + Head_Length + Head_Width + Neck_Circumference + 
+                        Body_Length + Chest_Circumference,
+                      data=bear_data)
+```
+
+
+## Q1 - Stepwise Regression
+
+Last week we discovered step-wise regression and best subsets suggested two different reduced models (one based on $R^2_a$ and the other AIC or BIC). Fit those models here.
+
+
+```{r}
+# find the two unique models from day 18!
+model1 <- lm(CubedRootWeight ~ Chest_Circumference + Body_Length + Neck_Circumference + Age, data = bear_data)
+model2 <- lm(CubedRootWeight ~ Chest_Circumference + Body_Length + Neck_Circumference + Age + Head_Width, data = bear_data)
+```
+
+
+## Q2 - LOOCV Study
+
+We now have three models fit for the cubed root of bear weight. Determine which of these three models has the smallest RMSE and MAE based on a LOOCV approach.
+
+```{r}
+loocv_lm_error(full_bear_model)
+loocv_lm_error(model1)
+loocv_lm_error(model2)
+```
+
+**Model1 has ths smallest RMSE with (0.2212077), however Model2 has the smallest MAE with (0.1708656). Since both models are very similar, the best model can be determined by the number of predictors, Model1 has the least number of predictors therefore it has the best fit.**
+
+
+
+
+
+
+## Q3 - Error Comparison
+
+For the model with the best RMSE of those considered in Q2, compare and contrast the RMSE value to the `Residual standard error` of the fitted model. What are they measuring? Why are the values is different?  
+
+*Note: this is more of a conceptual question.*
+
+
+
+
+```{r}
+summary(model1)
+```
+
+
+**Model1 has a RMSE of 0.2212077, however it has a RSE of 0.1933 on 49 degrees of freedom. The RMSE is measuring how the fitted model predicts the response on average. On the other hand, the RSE measures the average error of the fitted model. These values are different because the RMSE is the error averaged across the "Leave Out One" models, while the RSE is the error calculated based on the SAME data used to fit the model.**
+
+
+
+
+
+
+
+## Q4 - Predicting
+
+Using the model with the smallest RMSE predict the weight (not cubed root of weight) with a 95% prediction interval of a male bear in fall aged 45 months, with a head length of 14 inches, head width of 7 inches, neck circumference of 24 inches, body length of 64 inches and chest circumference of 38 inches.
+
+```{r}
+predict_data <- data.frame(
+  Sex = 0,
+  Season = "Fall",
+  Age = 45,
+  Head_Length = 14,
+  Head_Width = 7,
+  Neck_Circumference = 24,
+  Body_Length = 64,
+  Chest_Circumference = 38
+)
+
+
+predict(model1, newdata = predict_data, interval = "prediction", level = 0.95)^3
+
+
+```
+
+
+**We are 95% confident that a bear with these characteristics will weigh between 164.38 and 246.92 pounds.**
+
+

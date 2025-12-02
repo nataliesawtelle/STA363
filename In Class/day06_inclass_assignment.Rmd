@@ -1,0 +1,181 @@
+---
+title: "Day 06 Assignment"
+author: "Natalie Sawtelle"
+date: "2025-09-15"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(knitr)
+library(ggfortify)
+library(emmeans)
+```
+
+
+# Potato Data - Revisited
+
+The following dataset is from a study about the quality of cooked potatoes using various cooking methods and measures of quality. The data source is
+
+> A. Mackey and J. Stockman (1958). "Cooking Quality of Oregon-Grown Russet Potatoes", *American Potato Journal*, Vol.35, pp395-407.
+
+There are several variables in this data set, but for today, we are going to focus on **how storage time and potato size influence flavor scores**. However, it is a well known fact that the **cooking method** will also influence the flavor (who doesn't love a good french fry?), so we want to use the **cooking method as a blocking variable**. The cooking methods are coded as follows:
+
+* 1 = Boiled
+* 2 = Steamed
+* 3 = Mashed
+* 4 = Baked at 350 degrees F
+* 5 = Baked at 450 degrees F
+
+And the two factor variables of interest are coded as follows:  the storage periods are coded
+
+* 1 = 0 months storage
+* 2 = 2 months storage
+* 3 = 4 months storage
+* 4 = 6 months storage
+
+and the potato sizes are coded as:
+
+* 1 = Large potato
+* 2 = Medium potato
+
+
+## Data Entry
+
+Today's data are distributed as a text file (".txt"). The provided code below reads in the data, converts all the numeric coded variables to properly labeled factor variables, and provides a glimpse of the data. 
+
+#### Data Input
+
+```{r data_input}
+potato <- read_table("potato.txt", show_col_types=FALSE)
+```
+
+
+#### Data Cleaning
+
+```{r data_munging}
+potato <- potato |>
+  mutate(CookingMethod_fct = factor(CookingMethod,
+                                    labels=c("Boiled", "Steamed", "Mashed", "Baked @350F", "Baked @450F") ),
+         StorageTime_fct = factor(StorageTime,
+                                  labels=c("0 months", "2 months", "4 months", "6 months") ),
+         Size = factor(Size, labels=c("Large", "Medium") )
+         ) |>
+  select(CookingMethod_fct, StorageTime_fct, Size, FlavorScore)
+```
+
+#### Glimpse of the Data
+
+```{r data_glimpse}
+glimpse(potato)
+```
+
+
+
+## EDA
+
+Below a profile plot has been provided to you. There are two accompanying questions: In the first, you will do some detective work and deduce what the different code pieces are doing by answering a series of questions.  In the second question, you will provide some analysis to the plot.
+
+
+```{r}
+ggplot(potato, aes(x=StorageTime_fct, y=FlavorScore, color=Size, group=interaction(CookingMethod_fct, Size) ) )+
+  stat_summary(fun="mean", geom="point", size=1.5, alpha=0.3) +
+  stat_summary(fun="mean", geom="line", alpha=0.3) +
+  stat_summary(fun="mean", geom="point", aes(group=Size), size=3 ) +
+  stat_summary(fun="mean", geom="line", aes(group=Size), linewidth=1.25 ) +
+  scale_color_manual(values=c("#00A0E1", "#D7642C") ) +
+  theme_bw() + 
+  labs(color="Potato Size", 
+       x="Storage Time", 
+       y="Flavor Score",
+       title="Mean Potato Flavor Score by storage time & potato size",
+       subtitle="Based on 160 flavor scores of potatoes on 5 cooking methods",
+       caption="Source: Mackey Stockman (1958). Am. Potato J., Vol.35, pp395-407.") +
+  theme(plot.caption = element_text(family="mono"))
+```
+
+### Code Questions
+
+* What do the two different sets of `stat_summary()` do in this code? That is, there are two *pairs* of `stat_summary()` where one draws points and the other lines.
+
+**The first set of stat_summary() displays each set of data per cooking method, while the second set of stat_summary() displays the summarized data between each potato size.**
+
+* What does the `alpha=0.3` do?
+
+**alpha=0.3 is the transparency of the lines on the plot.**
+
+* What does the `scale_color_manual()` code do?
+
+**scale_color_manual() determines the colors of the points and lines of each size.**
+
+* What does the `theme(plot.caption=...)` code do?
+
+**theme(plot.caption = element_text(family="mono")) changes the font of the plot's caption.**
+
+* What does the `group=interaction(CookingMethod_fct, Size)` option in `ggplot()` do?
+
+**group=interaction(CookingMethod_fct, Size) tells the plot to graph the interactions of cooking method and size for each line.**
+
+
+
+
+### Analysis of Plot
+
+Provide a short analysis of the findings of the plot
+
+**The plot above shows that no matter the cooking method and size, for potatos aged for 0 and 2 months there is very little difference in flavor score. Only when it gets to 4 and 6 months do we see a difference between medium and large potatoes. At four months large potatos have a better flavor score, while at six months medium potatos have a better flavor score.**
+
+
+
+
+
+## ANOVA model fit
+
+Fit a two-way block ANOVA to model the effects of storage time and potato size on flavor score while accounting for the known effect of cooking method. Be sure to check your assumptions and explain your results!
+
+```{r anova_model}
+anova_model <- aov(FlavorScore ~ StorageTime_fct + Size, data = potato)
+autoplot(anova_model)
+```
+
+**The residuals are evenly spaced so the assumption of variablilty is okay. Most points fall upon the diagonal line on the normal QQ plot, so it is approximately normal. There are also no outliers on the Residuals vs Factor levels.**
+
+
+
+## ANOVA Results
+
+Perform the appropriate hypothesis test(s) for this experiment. Clearly state your findings
+
+```{r anova_table}
+summary(anova_model)
+```
+
+*Recall, always look at the most complicated interaction first*
+
+**There is a srtong significance that the storage time of potatos affects the flavor score. On the other hand, the size of the potato does not seem to affect the flavor score.**
+
+
+
+
+## Multiple Comparisons
+
+Run the appropriate tests for multiple comparisons (only if necessary).
+
+
+```{r multcomp}
+potato_mc <- emmeans(anova_model, ~StorageTime_fct)
+plot(contrast(potato_mc, "tukey"))
+```
+
+
+**We see all 6 pairwise comparisons and that 0-months storage time clearly results in a lower flavor score than 2 months, 4 months or 6 months whereas there is no statistical difference between 2 months, 4 months and 6 months.**
+
+
+
+
+
+
+
+
+

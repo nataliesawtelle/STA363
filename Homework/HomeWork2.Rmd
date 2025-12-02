@@ -1,0 +1,182 @@
+---
+title: "Homework 2"
+author: "Natalie Sawtelle"
+date: "2025-09-17"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggfortify)
+library(knitr)
+library(emmeans)
+```
+
+# Problem 1: Speed Reduction
+
+* What are the **Experimental Units** in this study? 
+     - **15 different Drivers**
+* What is the **response variable** in this study? 
+     - **Change in Average Acceleration**
+* What is the **factor** in this study? 
+     - **Speed Reduction Markings**
+* How many **factor levels** are there? 
+     - **1 = "None", 2 = "Longitudinal, 3 = "Traverse"**
+* What are the **treatments**?  
+     - **Each of the 15 drivers paired with each factor level**
+* What are the **controlled factors**?
+     - **Vehicle and Road** 
+
+```{r task 2 data and munging}
+cars <- read_csv("carspeed.csv", show_col_types=FALSE)
+```
+
+```{r task 2 munging}
+cars <- cars |>
+  rename(
+    Treatment = Trt,
+    Accelerate = accelerate) |>
+  mutate(Treatment_fct = factor(Treatment,
+                                    labels=c("None", "Longitudinal", "Traverse"))) |>
+  select(Treatment_fct, Subject, Accelerate)
+glimpse(cars)
+```
+
+```{r task 3 profile plot}
+p_list <- list()
+profile_plot <- ggplot(cars, aes(x=Treatment_fct, y=Accelerate, group=Subject)) +
+  geom_line(aes(color=Subject), alpha=0.6) +
+  stat_summary(fun=mean, geom="line", aes(group=1), size=1.2) +
+  stat_summary(fun=mean, geom="point", size=3) +
+  ggtitle("Profile plot: Change in acceleration by Treatment (subjects lines)") +
+  theme_minimal()
+print(profile_plot)
+```
+
+**Overall, it seems the Treatments do not affect the acceleration.**
+
+```{r residuals ect}
+anova_model1 <- aov(Accelerate ~ Treatment_fct, data = cars)
+autoplot(anova_model1)
+```
+
+**Nothing too concerning appears in these plots. The Normal QQ has a few outliers, but they mostly follow the diagonal line.**
+
+```{r Speed anova}
+summary(anova_model1)
+```
+
+**There is not a strong enough significance for the multiple comparisons test to be needed. The treatment does not significanty affect the acceleration.**
+
+
+
+# Problem 2: Lacrosse Helmets
+
+* What are the **Experimental Units** in this study? 
+     - **15 different Drivers**
+* What is the **response variable** in this study? 
+     - **GADD Severity Index**
+* What is the **factor** in this study? 
+     - **models and impact sides**
+* How many **factor levels** are there? 
+     - **4 models and 2 impact sides**
+* What are the **treatments**?  
+     - **The 8 combinations of models and sides**
+
+
+```{r data3}
+lacrosse <- read_table("lacrosse_helmet.txt", col_names = TRUE)
+```
+
+``` {r munging}
+lacrosse <- lacrosse |>
+  mutate(Model = factor(Model,
+                                    labels=c("SCH", "SHCAF", "SHCUL", "BUL")),
+         Side = factor(Side,
+                                    labels=c("Front", "Back"))) |>
+  select(Model, Side, GADD)
+glimpse(lacrosse)
+```
+
+```{r EDA prob 2}
+ggplot(lacrosse, aes(x=Model, y=GADD, col=factor(Side), group=Side) )+
+  stat_summary(fun="mean", geom="point", size=3) +
+  stat_summary(fun="mean", geom="line") +
+  theme_bw() + 
+  labs(color="Impact Sides", 
+       x="Model", 
+       y="GADD",
+       title="GADD by model and impact side")
+```
+
+**It appears the front and back, when paired with the different model types, have completely opposite GADD results.**
+
+```{r two factor Anova residuals}
+anova_model2 <- aov(GADD ~ Model * Side, data = lacrosse)
+autoplot(anova_model2)
+```
+
+**It appears there is no concern in the Residuals vs Fitted and Scale-Location plots and overall Normality appears satisfied based on the Q-Q plot.**
+
+```{r two factor anova}
+summary(anova_model2)
+```
+
+**There is significant relationship between model, side, and the model and side combined with the GADD score.**
+
+```{r multiple comparisons}
+lacrosse_mc <- emmeans(anova_model2, ~ Model | Side)
+plot(contrast(lacrosse_mc, "tukey"))
+```
+
+**We see a more negative leaning estimate when the side is the back, while when it is the front, the estimate leans more positive.**
+
+
+
+# Problem 3: Caffeine and Endurance
+
+* What are the **Experimental Units** in this study? 
+     - **9 different Cyclists**
+* What is the **response variable** in this study? 
+     - **Endurance time**
+* What is the **factor** in this study? 
+     - **caffeine dosage**
+* How many **factor levels** are there? 
+     - **4 dosage levels**
+* What are the **controlled factors**?
+     - **The researcher made sure no cyclist was ever tested on consecutive days**
+
+```{r data}
+cycle <- read_csv("cyclist_caffeine.csv", show_col_types = FALSE)
+```
+
+```{r EDA}
+ggplot(cycle, aes(x=dose_c, y=endtime, col=factor(subject_c), group=subject_c) )+
+  stat_summary(fun="mean", geom="point", size=3) +
+  stat_summary(fun="mean", geom="line") +
+  theme_bw() + 
+  labs(color="Subject", 
+       x="Dosage", 
+       y="Minutes",
+       title="Minutes until exhaustion at 80% Wmax on cycle by caffeine dosage")
+```
+
+**answer**
+
+```{r residuals prob 3}
+anova_model3 <- aov(endtime ~ dose_c + subject_c, data = cycle)
+autoplot(anova_model3)
+```
+
+**The residuals vs. fitted suggest possible violations of linear regression assumptions, while normality appears satisfied based on the Q-Q plot.  **
+
+```{r one way block anova}
+summary(anova_model3)
+```
+
+**Neither dosage nor subject treatments show a significant affect on the minutes to exhustion, therefore we do not need to make a multiple comparisons graph.**
+
+
+
+

@@ -1,0 +1,124 @@
+---
+title: "In-Class 13: Assignment"
+author: "Natalie Sawtelle"
+output: html_document
+---
+  
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(knitr)
+library(ggfortify)
+library(GGally)
+```
+
+
+## Data
+
+This data is taken from:
+
+> Triola, M. M., & Triola, M. F. (2006). Biostatistics for the Biological and Health Sciences. Boston, MA: Pearson.
+
+Researchers have studied bears by anesthetizing them in order to obtain vital measurements, such as age, sex, length and weight (do not try this at home, because checking the length or sex of a bear not fully anesthetized can be an unpleasant experience). Because most bears are quite heavy and difficult to lift, researchers and hunters experience considerable difficulty actually weighing a bear in the wild. We aim to build a predictive model on bear weight using other variables in the data.
+
+The full data are provided in the file `bear_measurements.csv` and contain the following variables.
+
+
+* `Age` - The age of the bear, recorded in months.
+* `Month` - The month the observation was collected. 
+* `Sex` - the biological sex of the bear, 0=male and 1=female.
+* `Head_Length` - The length of the bear's head, in inches.
+* `Head_Width` - The width of the bear's head, in inches.
+* `Neck_Circumference` - The distance around the bear's neck, in inches. 
+* `Body_Length` - The length of the bear's body, in inches.
+* `Chest_Circumference` - The distance around the bear's chest, in inches. 
+* `Weight` - The bear's weight, in pounds.
+
+
+### Directions
+
+Below are 4 questions to answer -- we will work question 1 together as a class. 
+
+For today, we are ignoring assumption checking and addressing any model violations. We will work with all variables in the original units.
+
+
+### Data Input and initial model (provided)
+
+```{r}
+bear_data <- read_csv("bear_measurements.csv",
+                      show_col_types=FALSE)
+glimpse(bear_data)
+```
+
+```{r}
+initial_bear_model <- lm(Weight ~ Head_Length + Head_Width + Neck_Circumference + 
+                           Body_Length + Chest_Circumference,
+                         data=bear_data)
+summary(initial_bear_model)
+```
+
+
+-----------
+
+### Question 1
+
+Create a new variable called `Season` that dictates if the bear's weight was calculated in the Spring (March, April, May), Summer (June, July, August) or Autumn (September, October, November).
+
+```{r season creation}
+bear_data <- bear_data |> 
+  mutate(Season = case_when(Month %in% c(3, 4, 5) ~ "Spring",
+                            Month %in% c(6, 7, 8) ~ "Summer",
+                            Month %in% c(9, 10, 11) ~ "Fall"))
+```
+
+
+
+
+
+### Question 2
+
+Fit a model with Head length, head width, neck circumference, body length, chest circumference and season to model the bear weights.  Provide an interpretation to the `(Intercept)` and two `Season` variables in the model. (default is fall)
+
+```{r model}
+bear_model <- lm(Weight ~ Head_Length + Head_Width + Neck_Circumference + Body_Length + Chest_Circumference + Season, data = bear_data)
+summary(bear_model)
+```
+
+
+* **The Intercept variabke represents the Fall season, because the model reprsents when all variables are at 0, the -238.71 is only a comparison.**
+* **On average, the weight of a bear in the spring is 7.29 lbs more than bears in the fall. However, the p-value 0.5834 shows that this is not significant.**
+* **On average, the weight of a bear in the summer is 18.28 lbs more than bears in the fall. However, the p-value 0.1358 shows that this is also not significant.**
+
+
+
+
+### Question 3
+
+Perform a reduced $F$-test to determine if `Season` is a significant predictor compared to the model without those variables.
+
+```{r reduced}
+reduced_model <- lm(Weight ~ Head_Length + Head_Width + Neck_Circumference + Body_Length + Chest_Circumference, data = bear_data)
+
+anova(reduced_model, bear_model)
+```
+**Because the Residual Sumof squares values change dramatically from model one to model two, model one shows a lot more variation in in bear weight. The very small p-value of model two also shows that by adding in the variable 'Season' significantly improves the model.**
+
+
+
+### Question 4
+
+Perform a reduced $F$-test to determine if Head Length and Head Width can be dropped from the initial model?
+
+```{r reduced 2}
+reduced_model2 <- lm(Weight ~ Neck_Circumference + Body_Length + Chest_Circumference + Season, data = bear_data)
+
+anova(reduced_model2, bear_model)
+```
+
+**There is only a slight decrease in Residual Sum of Squares values between the model not including Head Length and Head Width vs. the model that does. This shows that there is little to no significance in the improvemnt in the model with the inclusion of Head Length and Head Width, when Neck Circumference, Body Length, Chest Circumference, and Season are accounted for.**
+
+
+
+
+
+

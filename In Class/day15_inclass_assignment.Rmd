@@ -1,0 +1,184 @@
+---
+title: "Class 15: Assignment"
+author: "Your Name"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(knitr)
+library(GGally)
+library(ggfortify)
+library(car)
+```
+
+
+# Data
+
+This data is taken from:
+
+> Triola, M. M., & Triola, M. F. (2006). Biostatistics for the Biological and Health Sciences. Boston, MA: Pearson.
+
+Researchers have studied bears by anesthetizing them in order to obtain vital measurements, such as age, sex, length and weight (do not try this at home, because checking the length or sex of a bear not fully anesthetized can be an unpleasant experience). Because most bears are quite heavy and difficult to lift, researchers and hunters experience considerable difficulty actually weighing a bear in the wild. We aim to build a predictive model on bear weight using other variables in the data.
+
+The full data are provided in the file `bear_measurements.csv` and contain the following variables.
+
+
+* `Age` - The age of the bear, recorded in months.
+* `Month` - The month the observation was collected. 
+* `Sex` - the biological sex of the bear, 0=male and 1=female.
+* `Head_Length` - The length of the bear's head, in inches.
+* `Head_Width` - The width of the bear's head, in inches.
+* `Neck_Circumference` - The distance around the bear's neck, in inches. 
+* `Body_Length` - The length of the bear's body, in inches.
+* `Chest_Circumference` - The distance around the bear's chest, in inches. 
+* `Weight` - The bear's weight, in pounds.
+
+# Goals
+
+The statistical goal for today is *get into the weeds* of the predictor variables. Much of the code is supplied for this assignment.
+
+We begin with some data processing.
+
+```{r}
+bear_data <- read_csv("bear_measurements.csv",
+                      show_col_types=FALSE)
+```
+
+We saw through a residual analysis that the response variable (`Weight`) in the bear data likely needs to be transformed. A cubed root transformation on the weight is nearly optimal in this setting. That is,
+
+$$\sqrt[3]{y} = y^{1/3}$$
+and note we can undo the transformation by raising to the third power:
+$$y = (\sqrt[3]{y})^3 = (y^{1/3})^3$$
+
+
+# Part 1
+
+We include a scatterplot of our prospective predictor variables for today (note the RMarkdown options in the Rmd file).
+
+```{r, fig.width=10, fig.height=10, message=FALSE, warning=FALSE, echo=FALSE}
+ggpairs(bear_data, columns=4:9 ) +
+  theme_bw() +
+  theme(panel.grid.major = element_blank() )
+```
+
+## Question 1
+
+Based on the supplied scatterplot matrix of the predictor variables, do you have any concerns that multicollinearity will be present in any multiple regression models we build today? Justify by referencing output in the plot.
+
+**Every variable seems to be highly correlated with one an other based on the output of the plot, therefore there are concerns the multicollinearity will be present in any multiple regression models built today.**
+
+
+
+
+
+
+----
+
+
+
+
+# Part 2
+
+This part is all about multicollinearity and previews some model selection ideas we will cover in a few weeks.
+
+## Question 2
+
+Five simple linear regression models are fit in the next code chunk:
+
+```{r}
+model01 <- lm(Weight^(1/3) ~ Head_Length, data=bear_data)
+summary(model01)
+model02 <- lm(Weight^(1/3) ~ Head_Width, data=bear_data)
+summary(model02)
+model03 <- lm(Weight^(1/3) ~ Neck_Circumference, data=bear_data)
+summary(model03)
+model04 <- lm(Weight^(1/3) ~ Body_Length, data=bear_data)
+summary(model04)
+model05 <- lm(Weight^(1/3) ~ Chest_Circumference, data=bear_data)
+summary(model05)
+```
+
+You should note that all five variables are significant predictors for the cubed root of the Bear weights when fit marginally as simple linear regression models. Also note, all five models include a positive value on the slope coefficient.
+
+Now consider the following multiple regression model:
+
+```{r}
+full_model <- lm(Weight^(1/3) ~ Head_Length + Head_Width + Neck_Circumference +
+                 Body_Length + Chest_Circumference, data=bear_data)
+summary(full_model)
+```
+
+What do you notice about the adjusted $R^2$ value of `full_model` compared to those reported in the simple linear regressions supplied above (specifically `model05`)? Do you find its lack of explanation strange compared to the accumulation of variability explained in the simple linear models? Discuss.
+
+**The adjusted R^2 of the full multiple model is only slightly higher than the adjusted R^2 of the best simple model. This is a sign of multicollinearity because each variable does not provide us with ne information.**
+
+
+
+
+
+
+
+## Question 3
+
+You should note that in the simple linear regression models, all of five predictors were significant when fit marginally, yet in `full_model` only three show up as significant. Why do you think that is the case?
+
+**This is the case because of multicollinearity. The variables have shared variance, when this is accounted for in the full model, the variables are no longer statistically significant.**
+
+
+
+
+
+
+## Question 4
+
+Now we calculate the Variance Inflation Factors in `full_model`.  What do these values imply about the predictors in the model and relate it to the findings in Question 1, Question 2 and Question 3?
+
+You might want to consult the textbook as well as the notes for VIF values.
+
+```{r}
+vif(full_model)
+```
+
+
+**The VIF values for Neck Circumference and Chest Circumference, as well as Head Length and Body Length, indicate a high degree of multicollinearity in the full model. This confirms that these variables are highly correlated with one another, as well as the responses to each of the questions above.**
+
+
+
+
+
+## Question 5
+
+In the code chunk below, construct a new model for the cubed root of the Bear weights where you have removed the predictor variable with the most concerning variance inflation factor. What do you notice about the adjusted $R^2$ compared to the other models fit? **Are there predictors becoming significant in the new model that were not in the previous model?** Compute the VIF for the predictors of this model and discuss the findings of the marginal $t$-tests in this model.
+
+
+```{r}
+model_reduced <- lm(Weight^(1/3) ~ Head_Length + Head_Width + Body_Length + Chest_Circumference, data=bear_data)
+summary(model_reduced)
+vif(model_reduced)
+```
+
+
+**After removing neck circumfrence, the model still maintained a very high R^2 thats only slightly lower than the full model. This proves that body length and chest curcumfrence still explain most of the variation in weight, because they are statistically siugnificant.** 
+
+
+
+
+## Question 6
+
+Fit a reduced version of the multiple regression model from Question 5 where you have removed all insignificant predictors based on marginal $t$-tests and had a concerning VIF value (one such variable meets both criteria. **What do you notice about the adjusted $R^2$ for this model compared to that in question 5 and 2? What do you notice about all the predictor variables in this model?**
+
+```{r}
+model_reduced2 <- lm(Weight^(1/3) ~ Head_Width + Body_Length + Chest_Circumference, data = bear_data)
+summary(model_reduced2)
+
+vif(model_reduced2)
+```
+
+
+**The adjusted R^2 is almost the same as the last model's, which indicates that removing insignificant variables in this model does not harm the models power. Addtionally very variable included in this model is statistically significant. The VIF values for each variable are significantly lower proving that multicollinearity has been mosty resolved.**
+
+
+
+

@@ -1,0 +1,115 @@
+---
+title: "Class 16: Assignment"
+author: "Natalie Sawtelle"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(knitr)
+library(GGally)
+library(ggfortify)
+library(car)
+library(tidymodels)
+```
+
+
+# Data
+
+This data is taken from:
+
+> Triola, M. M., & Triola, M. F. (2006). Biostatistics for the Biological and Health Sciences. Boston, MA: Pearson.
+
+Researchers have studied bears by anesthetizing them in order to obtain vital measurements, such as age, sex, length and weight (do not try this at home, because checking the length or sex of a bear not fully anesthetized can be an unpleasant experience). Because most bears are quite heavy and difficult to lift, researchers and hunters experience considerable difficulty actually weighing a bear in the wild. We aim to build a predictive model on bear weight using other variables in the data.
+
+The full data are provided in the file `bear_measurements.csv` and contain the following variables.
+
+
+* `Age` - The age of the bear, recorded in months.
+* `Month` - The month the observation was collected. 
+* `Sex` - the biological sex of the bear, 0=male and 1=female.
+* `Head_Length` - The length of the bear's head, in inches.
+* `Head_Width` - The width of the bear's head, in inches.
+* `Neck_Circumference` - The distance around the bear's neck, in inches. 
+* `Body_Length` - The length of the bear's body, in inches.
+* `Chest_Circumference` - The distance around the bear's chest, in inches. 
+* `Weight` - The bear's weight, in pounds.
+
+# Goals
+
+The statistical goal for today is *get into the weeds* of the individual observations.
+
+We begin with some data processing.
+
+```{r}
+bear_data <- read_csv("bear_measurements.csv",
+                      show_col_types=FALSE)
+```
+
+We saw through a residual analysis that the response variable (`Weight`) in the bear data likely needs to be transformed. A cubed root transformation on the weight is nearly optimal in this setting. That is,
+
+$$\sqrt[3]{y} = y^{1/3}$$
+and note we can undo the transformation by raising to the third power:
+$$y = (\sqrt[3]{y})^3 = (y^{1/3})^3$$
+
+We include a scatterplot of our prospective predictor variables for today (note the RMarkdown options in the Rmd file).
+
+```{r, fig.width=10, fig.height=10, message=FALSE, warning=FALSE, echo=FALSE}
+ggpairs(bear_data, columns=4:9) +
+  theme_bw() +
+  theme(panel.grid.major = element_blank() )
+```
+
+Now consider the following multiple regression model:
+
+```{r}
+full_model <- lm(Weight^(1/3) ~ Head_Length + Head_Width + Neck_Circumference +
+                 Body_Length + Chest_Circumference, data=bear_data)
+```
+
+
+
+## Question 1
+
+Write code that makes the 6 plot version of the Residual Plots for the `full_model`.
+
+```{r, warning = FALSE}
+autoplot(full_model, which=c(1,2,3,5,4,6))
+```
+
+
+## Question 2
+
+Provide an analyze the Residuals vs Leverage plot.
+
+**The residuals vs. Leverage plot looks like it fits the points well, however point thirteen has both high leverage and a large standardized residual meaning it could be of concern.**
+
+
+
+## Question 3
+
+Provide an analysis on the Cook's distance and Cook's dist vs Leverage plots.
+
+**The Cook's distance plot shows observation thirteen stands out clearly with a much higher Cook’s distance than the other observations. While observations 4 and 52 show small cooks distances, the others are close to or about zero. The Cook's dist vs Leverage plots show Observation thirteen again lying far toward the upper-right region, confirming that this point is a major influence on the regression fit.**
+
+
+
+## Question 4
+
+Provide code to explore any unusual or influential observations - the code should report the response variable along with the predictor variable values.
+
+```{r}
+augment(full_model)
+```
+
+
+
+## Question 5
+
+Try and determine why the points highlight in Question 4 are strange and/or influential.
+
+**Observation 13 appears to have both high leverage and a large residual, meaning its predictor values are not similar to the typical range seen in other bears. Observations 4 and 52 also show slightly higher leverage or Cook’s distance values, suggesting they are somewhat unusual.**
+
+
+

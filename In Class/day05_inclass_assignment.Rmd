@@ -1,0 +1,140 @@
+---
+title: "Day 05 Assignment"
+author: "Natalie Sawtelle"
+date: "2025-09-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(knitr)
+library(ggfortify)
+library(emmeans)
+```
+
+
+# Wool Fiber Data
+
+The dataset `wool_fibers.txt` includes the results from a classic experiments on the ability of wool fibers to withstand chemical treatments in different acidity of washes. Replicate wool fibers were treated with one of three chemical treatments and subjected to one of three levels of acid wash, and the "Top Shrinkage" (a measure of change in the length of the wool fibers) was recorded. The data source is
+
+> J. Lindberg(1953). "Relationship Between Various Surface Properties of Wool Fibers: Part II: Frictional Properties," Textile Research Journal, Vol. 23, pp. 225-237.
+
+The following variables are included in the data:
+
+* Run - a count variable simply indicating which replication an observation corresponds to (not helpful in the analysis).
+* Treatment - one of three chemical treatments, coded numerically; 1=untreated, 2=ether-extracted, and 3=ether/alcohol extracted.
+* pH - The acidity level of the wash, measured as a pH of 2, 6 or 10.
+* Top Shrinkage, a measure of change in the size of the wool fiber after washing.
+
+We are interested in studying the effects of both the chemical treatment and pH of the wash on the shrinkage of the wool fibers.
+
+
+## DOE Identification
+
+Indicate the relevant elements of the experiment:
+
+- **Experimental Units in this study?** *Wood fiber samples*
+- **The factors of interest in this study?** *Chemical treatment, pH level of wash*
+- **How many factor levels are there?** *3 levels of chemical treatment, and 3 of pH level of wash*
+- **What are the treatments?** *the nine combinations created by the chemical levels 1=untreated, 2=ether-extracted, and 3=ether/alcohol extracted and pH of 2, 6 or 10*
+
+
+
+## Data Entry and Munging
+
+Data entry and data munging code are provided to you for today.
+
+```{r data_input}
+wool_data <- read_table("wool_fibers.txt", show_col_types=FALSE)
+glimpse(wool_data)
+```
+
+Note, everything is coded as a numeric value. Below we convert the relevant variables to factor variables and add labels when necessary.
+
+
+```{r data_munging}
+wool_data <- wool_data |>
+  mutate(Treatment = factor(Treatment,
+                            labels=c("Untreated", "Ether-extracted", "Ether/Alcohol-extracted") ),
+         pH = factor(pH) )
+```
+
+
+
+
+## EDA
+
+Code for an interaction plot is provided below. Analysis the findings of this plot.
+
+```{r}
+ggplot(wool_data, aes(x=Treatment, y=Shrinkage, col=pH, group=pH) )+
+  stat_summary(fun="mean", geom="point", size=3) +
+  stat_summary(fun="mean", geom="line") +
+  theme_bw() + 
+  labs(color="Acidity of Wash", 
+       x="Acid Treatment", 
+       y="Wool Top Shrinkage",
+       title="Shrinkage of wool fibers by treatment and acidity")
+```
+
+
+
+**Both chemical treatment and ph affect the shrinkage. Chemical treatments reduce the difference in shrinkage that are seen at different pH levels**
+
+
+
+
+## ANOVA model fit
+
+Fit a two-way ANOVA modeling the Top Shrinkage as an influence of the treatment and acidity of the wash.
+
+```{r anova_model}
+anova_model <- aov(Shrinkage ~ Treatment * pH, data=wool_data)
+summary(anova_model)
+```
+
+
+
+## Residual Analysis
+
+Perform a residual analysis on the fitted ANOVA model
+
+```{r resid_analysis}
+autoplot(anova_model)
+```
+
+**Each plot proves the assumptions of independence, homoscedasticity, and normality.**
+
+
+
+## Perform ANOVA Hypothesis Test
+
+```{r anova_table}
+summary(anova_model)
+```
+
+
+**Since the p-value is highly significant for both the treatment and pH, both the chemical and pH have an affect of wood shrinkage.**
+
+
+
+
+## Multiple Comparisons
+
+Run, and analyze the findings, for the appropriate multiple comparisons (only if necessary).
+
+
+```{r multcomp}
+multcomp <- emmeans(anova_model, pairwise ~ Treatment | pH)
+plot(contrast(multcomp, "tukey") )
+```
+
+
+**Overall, pH levels untreated wool shrinks more than chemically treated wool. We also see that chemical extraction can reduce shrinkage, especially in a 6 or 10 pH. **
+
+
+
+
+
+

@@ -1,0 +1,125 @@
+---
+title: "Day 04 Assignment"
+author: "Natalie Sawtelle"
+date: "2025-09-08"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(knitr)
+library(ggfortify)
+library(emmeans)
+```
+
+
+# Potato Data
+
+The following dataset is from a study about the quality of cooked potatoes using various cooking methods and measures of quality. The data source is
+
+> A. Mackey and J. Stockman (1958). "Cooking Quality of Oregon-Grown Russet Potatoes", *American Potato Journal*, Vol.35, pp395-407.
+
+There are several variables in this data set, but for today, we are going to focus on just a few of them. We will look to investigate the *effect* of **storage time** *on* the **flavor score** of different potatoes. However, it is a well known fact that the **cooking method** will also influence the flavor (who doesn't love a good french fry?), so we want to use the **cooking method as a blocking variable**. The cooking methods are coded as follows:
+
+* 1 = Boiled
+* 2 = Steamed
+* 3 = Mashed
+* 4 = Baked at 350 degrees F
+* 5 = Baked at 450 degrees F
+
+and the storage periods are coded as:
+
+* 1 = 0 months storage
+* 2 = 2 months storage
+* 3 = 4 months storage
+* 4 = 6 months storage
+
+
+
+
+## Data Entry
+
+Today's data are distributed as a text file (".txt"). The provided code below reads in the data and provides a glimpse of the data. Note all the variables are "double" or `<dbl>` variables (numbers). We will need to do some data processing.
+
+```{r data_input}
+potato <- read_table("potato.txt", show_col_types=FALSE)
+glimpse(potato)
+```
+
+
+
+
+## Data Cleaning
+
+First, create a reduced data set that only contains the variables we need (`FlavorScore`, `CookingMethod` and `StorageTime`). You should also make sure the factor variables are not being treated as numeric. (For cooking method and storage times, set the factor labels to something more meaningful). This can be achieved using the `mutate()` and `select()` functions.
+
+```{r data_munging}
+potato <- potato |> 
+  mutate(StorageTime = factor(StorageTime, labels=c("0 months", "2 months", "4 months", "6 months")),
+         CookingMethod = factor(CookingMethod, labels=c("Boiled", "Steamed", "Mashed", "Baked at 350 degrees F", "Baked at 450 degrees F")))
+#select(CookingMethod, StorageTime)
+```
+
+
+
+
+## EDA
+
+Create a profile plot that shows the average flavor score for each storage period when adjusting for the cooking method. You should end up with a plot with 5 lines. Describe any relationships you see in this plot.
+
+Note: This plot can be made in one of two ways.
+
+* Use the `stat_summary()` function with the appropriate options, or
+* Make a new `data.frame` of the summary values by Cooking Method & Storage Time (using `group_by()` and `summarize()`) and build the plot using that data of summary values.
+
+```{r data_eda, warning=FALSE}
+ggplot(potato, (aes(x=StorageTime, y=FlavorScore, col=CookingMethod, group=CookingMethod))) + 
+  stat_summary(fun=mean, geom="point")+
+  stat_summary(fun=mean, geom="line") +
+theme_minimal()
+```
+
+**Overall, the flavor score tends to rise as the potato is aged. For both steamed and mashed potatoes, the flavor score seems to level out after 2 months. In opposition, potatoes baked at 450 degrees F have the opposite nature after over 4 months of aging.**
+
+
+
+
+## ANOVA model fit
+
+Run the one-way block ANOVA to test the effect of storage time on flavor score blocking for cooking method. Be sure to check your assumptions and explain your results!
+
+```{r anova_model}
+anova_model <- aov(FlavorScore ~ StorageTime + CookingMethod, data = potato)
+autoplot(anova_model)
+```
+
+
+**The residuals vs fitted plot seems to have equal spread and the normal QQ plot follows the line.**
+
+```{r anova_table}
+summary(anova_model)
+```
+
+
+**The ANOVA shows that storage time and cooking method both have a highly significant effect on flavor score.**
+
+
+## Multiple Comparisons
+
+Run the tests for multiple comparisons (only if necessary).
+
+
+```{r multcomp}
+potato_mc <- emmeans(anova_model, ~ StorageTime)
+contrast(potato_mc, "tukey")
+```
+
+
+**The tukey multiple comparisons test showed that potatoes stored for 0 months had significantly higher flavor scores than those stored for 2, 4, and 6 months. However, it also showed that there was no significant difference between those stored for 2, 4, and 6 months.**
+
+
+
+
+
+

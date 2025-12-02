@@ -1,0 +1,249 @@
+---
+title: "Homework 4"
+author: "Natalie Sawtelle"
+date: "2025-10-24"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(knitr)
+library(GGally)
+library(ggfortify)
+library(car)
+library(tidymodels)
+```
+
+# Problem 1
+
+Measurements on human blood properties were collected in an effort to build a model to determine the relationship with heart functions, as measured by the pulse rate. The following variables are in the dataset:
+
+HDL: High-Density Lipoprotein (HDL) cholesterol.
+LDL: Low-Density Lipoprotein (LDL) cholesterol
+WHITE: White blood cell count  - the number of white blood cells (leukocytes) (in thousands per microliter (µL) of blood). 
+PLATE: Platelet count - a measure of the number of platelets in your blood (in thousands per microliter of blood)
+PULSE: Resting Pulse rate - measured in beats per minute. 
+
+
+# Data 
+
+```{r body data}
+body_data <- read_csv("Body Data.csv",
+                      show_col_types=FALSE)
+```
+
+# Full Model
+
+```{r body full model fit, warning=FALSE}
+full_model <- lm(PULSE ~ HDL + LDL + WHITE + PLATE, data = body_data)
+autoplot(full_model)
+summary(full_model)
+```
+
+**Overall, the model is statistically significant with a F-stat of 3.353 and a p-value of 0.01052, as well as an Adjusted R^2 of 0.0305. However WHITE is the only significant predictor variable with a p-value of 0.004. There does not seem to be a severe violation of linearity and the Normal Q-Q Plot seems about normal. There is only a slight issue with equal variance. 3, 14, and 70 are some points to check.*
+
+# Six-panel residual plot
+
+```{r body six-panel}
+autoplot(full_model, which=c(1,2,3,5,4,6))
+vif(full_model)
+```
+
+**Observation 14 has the highest Cook’s distance. Points 14, 70 and 3 all exceed the threshold of influence, therefore they all have to potential to be influential. Cook’s Distance vs Leverage plot confirms that 14, 70, and 3 are the most influential.**
+
+**There does not seem to be a cause to worry about multicollinearity due to all VIF values being significatly under 10, as well as under 5.**
+
+# Reduced Model
+
+```{r }
+reduced_model <- lm(PULSE ~ WHITE, data = body_data)
+autoplot(reduced_model)
+summary(reduced_model)
+```
+
+# F-test
+
+```{r body f-test}
+anova(reduced_model, full_model)
+```
+
+**The combined variables HDL, LDL, and PLATE are not needed in the model. The reduced model provides an equally effective fit with an F-stat of 0.6892 and p-value of 0.5593. Therefore, WHITE is the only significant predictor of pulse rate.**
+
+# 95% prediction interval using full model
+
+```{r full body}
+new_body <- data.frame(
+  LDL=51, 
+  HDL=123,
+  WHITE=10.4, 
+  PLATE=337)
+
+predict(full_model, newdata=new_body, interval="prediction", level=0.95)
+```
+
+# 95% prediction interval using reduced model
+
+```{r reduced body}
+new_body_reduced <- data.frame(
+  LDL=51, 
+  HDL=123,
+  WHITE=10.4, 
+  PLATE=337)
+
+predict(reduced_model, newdata=new_body_reduced, interval="prediction", level=0.95)
+
+```
+
+**The reduced model results in a more precise prediction since it has a narrower interval.**
+
+**The results from the F-test are supported from these prediction intervals. Both suggest that the reduced is just slightly more accurate at predicting than the full model.**
+
+
+
+# Problem 2
+
+Data Description: The "palmerpenguins" data contains size measurements for three penguin species observed on three islands in the Palmer Archipelago, Antarctica. These data were collected from 2007 - 2009 by Dr. Kristen Gorman with the Palmer Station Long Term Ecological Research ProgramLinks to an external site., part of the US Long Term Ecological Research NetworkLinks to an external site.. The data were imported directly from the Environmental Data InitiativeLinks to an external site. (EDI) Data Portal, and are available for use by CC0 license (“No Rights Reserved”) in accordance with the Palmer Station Data PolicyLinks to an external site.. The following variables are in the dataset:
+
+Species: three penguin species observed in the data - Adelie, Gentoo and Chinstrap
+Island: three islands were were observed in the data - Torgersen, Biscoe, Dream
+Bill_Length: measured in mm
+Bill_Depth: measured in mm
+Flipper_Length: measured in mm
+Sex: both male and female penguins were observed in the data
+Body_Mass: measured in grams
+
+
+# Data
+
+```{r penguin data} 
+penguin_data <- read_csv("Palmer_Penguins.csv",
+                      show_col_types=FALSE)
+```
+
+# Scatterplot Matrix
+
+```{r, fig.width=10, fig.height=10, message=FALSE, warning=FALSE, echo=FALSE}
+ggpairs(penguin_data, columns=3:6) +
+  theme_bw() +
+  theme(panel.grid.major = element_blank() )
+```
+
+**The scatter plot demonstrates strong inter-variable relationships among size-related measurements and clear sex-based and species-based groupings, suggesting that both sex and species are key factors influencing penguin body dimensions.**
+
+# Full Model
+
+```{r penguin full model}
+full_penguin <- lm(Body_Mass ~ Species + Island + Bill_Length + Bill_Depth + Flipper_Length + Sex, data = penguin_data)
+summary(full_penguin)
+autoplot(full_penguin)
+vif(full_penguin)
+```
+
+**Overall, the model fits the data quite well as the main effects are highly significant, f-stat of 284.1 on 8 and 324 degrees of freedom and p-value of < 2.2e-16. The adjusted R^2 is 0.8721, meaning that about 87.5% of the variation in penguin body mass is explained by this model. Linearity seems to be satisfied by the residuals vs. fitted plot, as well as normality based on the normal qq-plot. There does not seem to be any worry for multicolinearity due to the VIF values all being under 10 and even 5.**
+
+# 99% confidence
+
+```{r penguin confidence}
+confint(full_penguin, level = 0.99)
+```
+
+**We are 99% confident that male penguins weigh between approximately 262 and 512 grams more than female penguins, after controlling for species, island, bill length, bill depth, and flipper length.**
+
+# Penguin Redcued model
+
+```{r penguin reduced}
+reduced_penguin <- lm(Body_Mass ~ Species + Bill_Length + Bill_Depth + Flipper_Length + Sex, data = penguin_data)
+summary(reduced_penguin)
+autoplot(reduced_penguin, which = 1:6)
+vif(reduced_penguin)
+```
+
+# F-test Penguin
+
+```{r penguin f-stat}
+anova(reduced_penguin, full_penguin)
+```
+
+**The Island variable does not need to be kept in the model. The F-test comparing the full model to the reduced model gives a p-value of 0.7127, which is not statistically significant. This indicates that including Island does not significantly reduce error or improve the model’s explanatory power.**
+
+**Observation 164 has the highest leverage. Based on the scatterplot from Part 1, this observation belongs to a Gentoo penguin with unusually large flipper length, as well as bill length and depth.**
+
+
+
+
+# Problem 3
+
+An experiment was conducted to compare the effects of Acupuncture and a nearly Designed Placebo Needle to treat Rotator Cuff Tendinitis. A set of patients suffering from Rotator Cuff Tendinitis were collect and a pre-treatment pain score was recorded (higher scores indicate less pain).  Patients were then randomly assigned to either a Acupuncture group ("A") or the Placebo Needle group ("P").  After 4 weeks of their assigned treatments, a post-treatment pain score was recorded for all patients.  The experimenter is interested in studying the effects of Acupuncture vs the Placebo Needle and how a patients initial pain score may influence these results.
+
+
+# Data 
+
+```{r acupuncture data}
+acu_data <- read_csv("acupuncture_rotcuff.csv",
+                      show_col_types=FALSE)
+```
+
+# EDA
+
+```{r acu scatter plot}
+ggplot(acu_data, aes(x = Post_Trt_Score, y = Pre_Trt_Score, color = Trt)) +
+  geom_point() + geom_smooth(method = "lm", se = FALSE) +
+  labs(title = "Pre- vs Post-treatment by Group")
+```
+
+**The effect of pre-treatment pain is similar for both groups since the lines are quite parallel.**
+
+# Full Model
+
+```{r acu model}
+full_acu <- lm(Post_Trt_Score ~ Trt * Pre_Trt_Score, data=acu_data)
+autoplot(full_acu)
+summary(full_acu)
+```
+
+**All assumptions seem to be varified by each plot. The Pre_Trt_Score effect is significant, while both the interaction term and Trt are not statistically significant based on their p-values. This model only explains a moderate amount of variance since the adjusted R^2 value is 0.3956. **
+
+# Reduced Model
+
+```{r reduced acu model}
+reduced_acu <- lm(Post_Trt_Score ~ Trt + Pre_Trt_Score, data=acu_data)
+summary(reduced_acu)
+autoplot(reduced_acu, which = 1:6)
+vif(reduced_acu)
+```
+
+**After removing the interaction, both pre-treatment pain and treatment type significantly predict post-treatment pain scores. All assumptions seem to be met, while a few observations, like 23, 37, 43, 51, show slightly higher influence, but none exceed the common thresholds. There does not seem to be a threat of multicollinearity due to the VIF values being under 10 and even 5.**
+
+# F-test Acupuncture
+
+```{r acu f-test}
+anova(reduced_acu, full_acu)
+```
+
+**The p-value of 0.6239 is greater than 0.05, thus the interaction term does not significantly improve the model’s fit. Therefore the reduced model is preferred.**
+
+**There is strong evidence that Acupuncture leads to better improvement in pain compared to the Placebo Needle. In addition, patients with higher initial scores tend to maintain higher post-treatment scores. The relationship between pre- and post-treatment pain does not differ significantly between treatment groups.**
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

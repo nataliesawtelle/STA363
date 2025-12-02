@@ -1,0 +1,174 @@
+---
+title: "Day 21: Assignment"
+author: "Natalie Sawtelle"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+## Read Me!!!!
+
+This assignment is set-up to help you build an understanding of **what** and **how** logistic regression works! In practice, performing a logistic regression analysis is much like that of a linear regression and is more streamlined than this assignment. The goal of this assignment is to provide some insight into the modeling of log-odds.
+
+Make sure to take a few moments and read through the supplied code section.
+
+## Data
+
+Quoted from the *Framingham Heart Study* website at `framinghamheartstudy.org`:
+
+Cardiovascular disease (CVD) is the leading cause of death and serious illness in the United States. In 1948, the Framingham Heart Study - under the direction of the National Heart Institute (now known as the National Heart, Lung, and Blood Institute or NHLBI) - embarked on an ambitious project in health research. At the time, little was known about the general causes of heart disease and stroke, but the death rates for CVD had been increasing steadily since the beginning of the century and had become an American epidemic. The Framingham Heart Study became a joint project of the National Heart, Lung and Blood Institute and Boston University.
+
+The objective of the Framingham Heart Study was to identify the common factors or characteristics that contribute to CVD by following its development over a long period of time in a large group of participants who had not yet developed overt symptoms of CVD or suffered a heart attack or stroke. The researchers recruited 5,209 men and women between the ages of 30 and 62 from the town of Framingham, Massachusetts, and began the first round of extensive physical examinations and lifestyle interviews that they would later analyze for common patterns related to CVD development. Since 1948, the subjects have continued to return to the study every two years for a detailed medical history, physical examination, and laboratory tests, and in 1971, the Study enrolled a second generation - 5,124 of the original participants’ adult children and their spouses - to participate in similar examinations. The study continues with new cohorts to this day.
+
+The datafile `framingham.txt` contains selected variables for 4,658 participants in the study. The variables are:
+
+* `age` - subject age in years
+* `sbp` - systolic blood pressure
+* `dbp` - diastolic blood pressure
+* `scl` - serum cholesterol level
+* `bmi` - BMI (Body Mass Index)
+* `chdfate` - Indicator of whether the subject has been diagnosed (1) or not (0) with coronary heart disease
+
+
+## Supplied Code
+
+```{r}
+framingham <- read_table("framingham.txt", show_col_types=FALSE)
+```
+
+We build a dataset that is an aggregation of the original `framingham` data. Specifically we do the following:
+
+* Convert the BMI values into groups ending in `.0`, `.2`, `.4`, `.6`, and `.8`.
+  + We do this with the `ifelse()` code.
+  + BMI values end with `.1` become `.0`, values `.3` become `.2` and so on.
+* The data is then grouped by BMI values, and for each group we determine the sample proportion of all patients with heart disease.
+* We remove all observations with 0 or 1 proportions.
+* Then we calculate the odds and log-odds for each BMI group.
+  + Note, if the proportion were 0 or 1, the odds would be 0 or infinity, and the log odds would be negative infinity or infinity.
+  + Hence, we removed the 0 and 1 observations so we do not have any infinite values.
+
+```{r}
+framingham_agg <- framingham |>
+  mutate(bmi = ifelse( round(bmi-floor(bmi), 1) %in% c(0.1, 0.3, 0.5, 0.7, 0.9), bmi-0.1, bmi)) |>
+  group_by(bmi) |>
+  summarize(N = n(),
+            prop = mean(chdfate)) |>
+  filter(prop > 0, 
+         prop < 1) |>
+  mutate(odds = prop/(1-prop),
+         log_odds = log(odds))
+```
+
+The dataset `framingham_agg` only includes a subset of all BMI values (174 BMI values, to be specific). To make fair comparisons, we will pick a subset of the original Framingham data with only those same BMI values.
+
+```{r}
+framingham_trim <- framingham |>
+  filter(bmi %in% framingham_agg$bmi)
+```
+
+The dataset `framingham_trim` has 2246 observations, but only including the 174 BMI values in the `framingham_agg` data.
+
+----
+
+## QUESTION 1
+
+Construct a scatter plot of the those with heart disease as a function of BMI using the data `framingham_trim`. Try and describe the relationship of the plot (you should note that this plot is not very informative).
+
+
+```{r}
+ggplot(framingham_trim) + 
+  geom_jitter(aes(x=bmi, y=chdfate), 
+              height=0, width=0.1, alpha=0.5, size=2.75) + 
+  labs(x="BMI",
+       y="Heart disease occured", 
+       title="Heart Disease in individuals based on BMI") + 
+  scale_y_continuous(breaks=c(0,1), labels=c("No", "Yes")) +
+  theme_minimal()
+```
+
+**Due to the aboundunce of data, the graph does not clearly show us any relationship between BMI and the occurence of heart disease. Therefore this scatterplot is noyt very informative.**
+
+
+
+
+
+## QUESTION 2
+
+Construct a scatter plot of the log-odds of heart disease as a function of BMI values using the `framingham_agg` data. Describe the relationship seen in the plot.
+
+
+```{r, message=FALSE}
+ggplot(framingham_agg) + 
+  geom_jitter(aes(x=bmi, y=log_odds), 
+              height=0, width=0.1, alpha=0.5, size=2.75) + 
+  labs(x="BMI",
+       y="log_odds of heart disease occured", 
+       title="log_odds heart Disease in individuals based on BMI") + 
+  scale_y_continuous(breaks=c(0,1), labels=c("No", "Yes")) +
+  theme_minimal()
+```
+
+**There seems to be a slight positive relationship between the log_odds of heart disease and BMI.**
+
+
+
+
+
+## QUESTION 3
+
+Fit a simple linear regression modeling the log-odds of heart disease as a function of BMI using the `framingham_agg` data. Also fit a Logistic Regression of the `chdfate` variable as a function of BMI using the `framingham_trim` dataset.
+
+```{r}
+lin_mod <- lm(log_odds ~ bmi, data = framingham_agg)
+
+summary(lin_mod)
+
+framingham.gfit <- glm(chdfate ~ bmi, 
+                  data=framingham_trim, 
+                  family=binomial(link=logit))
+
+summary(framingham.gfit)
+
+```
+
+## QUESTION 4
+
+Compare and contrast the two fitted models from Question 3. Specifically, how are they similar? And, why are the specific values a different between them?
+
+**The models are similar because they both show a positive relationship between BMI and the log-odds of heart disease, meaning that as BMI increases, the likelihood of heart disease also increases.**
+
+**The two models differ because they are fit to different types of data using different modeling approaches, therefore the intercept and slope values differ.**
+
+
+
+
+
+
+## QUESTION 5
+
+Fit a logistic regression to the full dataset (*i.e.*, `framingham`) where the `chdfate` variable is modeled by the BMI.  Compare/contrast this fit to the previous fitted models. What is different about this fit.
+
+```{r}
+full_gmod <- glm(chdfate ~ bmi,
+                    data = framingham,
+                    family = binomial(link =logit))
+summary(full_gmod)
+```
+
+
+**This model includes the complete range of BMI values,the estimated coefficient for BMI is slightly larger, and the intercept also shifts do to this factor.**
+
+
+
+
+
+## QUESTION 6
+
+Interpret the intercept and BMI coefficient in the logistic model from Question 5.
+
+**The intercept of –2.87707 is the log odds of developing heart disease for an individual with a BMI of 0. Each additional BMI point is associated with approximately an 8.5% increase in the odds of developing heart disease. The BMI coefficient is 0.08117.**
+
+

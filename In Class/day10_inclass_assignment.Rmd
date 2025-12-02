@@ -1,0 +1,137 @@
+---
+title: 'In-class 10: Assumption Checking in Regression'
+author: "Your Name!"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(knitr)
+library(GGally)
+library(ggfortify)
+```
+
+## Data
+
+This data is taken from:
+
+> Triola, M. M., & Triola, M. F. (2006). Biostatistics for the Biological and Health Sciences. Boston, MA: Pearson.
+
+Researchers have studied bears by anesthetizing them in order to obtain vital measurements, such as age, sex, length and weight (do not try this at home, because checking the length or sex of a bear not fully anesthetized can be an unpleasant experience). Because most bears are quite heavy and difficult to lift, researchers and hunters experience considerable difficulty actually weighing a bear in the wild. We aim to build a predictive model on bear weight using other variables in the data.
+
+The full data are provided in the file `bear_measurements.csv` and contain the following variables.
+
+
+* `Age` - The age of the bear, recorded in months.
+* `Month` - The month the observation was collected. 
+* `Sex` - the biological sex of the bear, 0=male and 1=female.
+* `Head_Length` - The length of the bear's head, in inches.
+* `Head_Width` - The width of the bear's head, in inches.
+* `Neck_Circumference` - The distance around the bear's neck, in inches. 
+* `Body_Length` - The length of the bear's body, in inches.
+* `Chest_Circumference` - The distance around the bear's chest, in inches. 
+* `Weight` - The bear's weight, in pounds.
+
+#### Statistical Goals
+
+The assignment for today is designed to give you practice at fitting linear models in R and performing some basic transformations on variables to see how you can potentially *improve* models.
+
+
+## Data entry
+
+*This part has been done for you in the interest of time.*
+
+```{r, warning=FALSE, message=FALSE}
+bear_data <- read_csv("bear_measurements.csv",
+                      show_col_types=FALSE)
+glimpse(bear_data)
+```
+
+For today, we will be using `Head_Length`, `Head_Width`, `Neck_Circumference`, `Body_Length` and `Chest_Cricumference` to predict `Weight`.
+
+## Part 1 - EDA
+
+This code builds a scatterplot matrix of the data. Describe any patterns you see in the relationships between variables. Also comment on the supplied density plots along the diagonal for several of the variables' distributions.
+
+```{r, warning=FALSE, message=FALSE, fig.width=8, fig.height=7}
+ggpairs(bear_data, columns=4:9)
+```
+
+**Overall, as each variable increases so does its response variable. Weight, chest, neck, and head are right skewed, while body length is left, and head is approximately bell curved.**
+
+
+## Part 2 - EDA Redeux
+
+Comment on the relationship between the Head Length and Weight of the bears in this sample.
+
+**According to the graph above, as Head length gets larger so does the weight of the bears. There is also a fanning pattern as the Head length increases.**
+
+
+
+## Part 3 - Initial Linear Model
+
+Fit a main effects regression model with all the length, width, and circumference variables used to predict weight.
+
+```{r, warning=FALSE, message=FALSE}
+lm_bear_data <- lm(Weight ~ Head_Length + Head_Width + Neck_Circumference, data = bear_data)
+```
+
+## Part 4 - Assess the Model Assumptions
+
+Assess the model assumptions for the fitted model from Part 3.
+
+```{r plotting the model}
+autoplot(lm_bear_data)
+```
+
+**Both the assumption of linearity and equal variance are not satisfied here. In the residuals vs. fitted plot there is obviously a curvature that dips below zero disproving linearity. There is also fanning in the same plot, thus equal variance is violated.**
+
+
+
+## Part 5 - Try transforming the response
+
+You should note there are some concerns about the assumptions being met. Try transforming the response variable and refitting the model to see if the assumptions are better met?  Make sure to describe the results of any tried transformations.
+
+
+```{r}
+lm_bear_data <- lm(log10(Weight) ~ Head_Length + Head_Width + Neck_Circumference, data = bear_data)
+autoplot(lm_bear_data)
+```
+
+**The residuals vs. fitted plot above shows a significantly less amount of fanning, fixing our issue with equal variance. It also has straightened out improving the assumption of linearity.**
+
+
+
+
+## Part 6 - Pick a model
+
+Which model do you feel best meets the model assumptions?  Justify.
+
+**My second model meets all assumptions. There is little to no fanning, the residuals vs. fitted line is approximately straight, and most points follow along the Normal QQ plot line as well.**
+
+
+
+
+## Part 7 - Model interpretation
+
+For your chosen model, interpret the the coefficient for the `(Intercept)` and `Head_Length` variable.
+
+```{r}
+lm_bear_data <- lm(log10(Weight) ~ Head_Length + Head_Width + Neck_Circumference, data = bear_data)
+summary(lm_bear_data)
+```
+
+**The intercept 0.715 cm represents the predicted weight of the bear when head length, head width, and neck circumference are equal to zero. Contextually this does not make sense because foot lengths and widths equal to zero are impossible. When head width and neck circumference are held constant, for every 1 cm increase in head length the expected log10(weight) of the bear will increase by 0.053072 cm.**
+
+
+
+## Part 8 - Variable effects
+
+Consider the results from Part 2 above (relationship of Head Length and Weight) and the interpretation from Part 7 (where you interpret the coefficient). Compare and contrast these results. Why do you think we get contradictory or conflicting results? (no correct answer here, looking for your thought process and intuition.)
+
+**I think my answer from part 2 is supported by the information I just wrote down for part 7. As the head length of the bear gets larger, so does the weight of the bear.**
+
+

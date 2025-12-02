@@ -1,0 +1,140 @@
+---
+title: "Homework 1"
+author: "Natalie Sawtelle"
+date: "2025-09-09"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggfortify)
+library(knitr)
+library(emmeans)
+```
+
+# Problem 1: Chick Weights 
+
+``` {r  task 1: anova model in grams and ounces}
+chick_weights <- chickwts |>
+  mutate(weight_oz = weight/28.35)
+chick_anova_g <- aov(weight ~ feed, data=chick_weights)
+chick_anova_oz <- aov(weight_oz ~ feed, data=chick_weights)
+```
+
+``` {r task 2: anova tables}
+summary(chick_anova_g)
+summary(chick_anova_oz)
+```
+
+**Both tests result in the same F and P-values, this shows that unit conversion does not affect the results of hypothesis testing.**
+
+``` {r task 3: equal variance}
+autoplot(chick_anova_g)
+```
+
+**The spread of residuals looks uneven across the groups, this suggests possible violations of the equal variance assumption.**
+
+```{r task 4: constant variance assumption}
+chick_log_anova <- aov(log10(weight) ~ feed, data=chick_weights)
+autoplot(chick_log_anova)
+```
+
+**The Residuals vs Fitted and Scale-Location plots show uniform spread. This indicates that the log-transformation improves the constant variance assumption compared to the not transformed model.**
+
+``` {r task 5: ANOVA table for the model fit with the logarithm of the chick weights as a response?????}
+summary(chick_log_anova)
+```
+
+**Both conclude that Feed type significantly affects chick weight. Task two gives out large sums of squares, while Task 5 gives out small sums of squares.**
+
+**task 6: Transforming the response variable makes the analysis more statistically valid by meeting model assumptions, but it does this at the cost of the ability to easily interpret the results.**
+
+
+#Problem 2:Popcorn
+
+* What are the **Experimental Units** in this study? 
+     - **Bags of kernels**
+* What is the **response variable** in this study? 
+     - **number of kernels poped**
+* What is the **factor** in this study? 
+     - **oil amount**
+* How many **factor levels** are there? 
+     - **none, 1/2 teaspoon ,1 teaspoon**
+* What are the **treatments**?  
+     - **Popcorn popped with no oil, with 1/2 teaspoon of oil, and with 1 teaspoon of oil**
+     
+```{r}
+Popcorn_study <- read.csv("popcorn.csv")
+```
+     
+```{r data cleaning popcorn}
+Popcorn_study_ordered <- Popcorn_study |> 
+  arrange(desc(Oil), Kernels)
+```
+
+
+```{r ANOVA and residual analysis}
+anova_model <- aov(Kernels ~ Oil, data = Popcorn_study)
+autoplot(anova_model)
+```
+
+**Since the p-value is much smaller than 0.05, we reject the null hypothesis that oil has no effect.**
+
+```{r numberical summary}
+summary(anova_model)
+```
+
+**The Residuals vs Fitted plot suggests no violation and the Normal Q-Q plot is approximately normal.**
+
+
+# Problem 3: Ant Pesticide
+
+* What are the **Experimental Units** in this study? 
+     - **Colonies**
+* What is the **response variable** in this study? 
+     - **Number of ants killed**
+* What is the **factor** in this study? 
+     - **Pesticide**
+* How many **factor levels** are there? 
+     - **types A, B, C, and D**
+* What are the **treatments**?  
+     - **Colonies treated with pesticide type A, type B, type C, or type D**
+     
+```{r}
+ant_pesticide_study <- read.csv("ant_pesticide.csv")
+```
+     
+```{r data cleaning ants}
+ant_pesticide_study_ordered <- ant_pesticide_study |>
+  mutate(Pesticide = factor(Pesticide)) |>
+  arrange(Pesticide, DeadAnts)
+```
+     
+```{r EDA}
+ggplot(ant_pesticide_study_ordered) + 
+  geom_boxplot(aes(x=DeadAnts, y=Pesticide)) + 
+  theme_bw()
+```
+
+```{r ANOVA ants}
+ant_anova <- aov(DeadAnts ~ Pesticide, data = ant_pesticide_study_ordered)
+summary(ant_anova)
+```
+
+```{r resdiduals}
+autoplot(ant_anova)
+```
+
+**Based on this study, there is no significant differences between pesticides type A, B, C, and D. However, there are some indications that types A and D are better than types B and C.**
+
+
+
+
+
+
+
+
+
+
+
