@@ -3,7 +3,7 @@
 
 Welcome! This repository contains my work for **STA 363: Intro to Statistical Modeling**, a hands-on statistics course focused on building real-world statistical analysis skills through R, regression modeling, and experimental design.
 
-Throughout the semester, I’ll be uploading assignments, reports, and code written in **R** and **RMarkdown**, following the topics outlined in the course syllabus. This repo highlights my progress in data analysis, model interpretation, and communicating insights effectively.
+This repo highlights my progress in data analysis, model interpretation, and communicating insights effectively.
 
 ---
 
@@ -53,12 +53,6 @@ The work in this repo demonstrates my ability to:
 ## 📝 Syllabus Reference
 
 This repository follows the structure and topics from the **Fall 2025 STA 363 Syllabus**, including weekly modules, in-class activities, and exams.
-
----
-
-## 🤝 Academic Integrity
-
-All work in this repository reflects my own understanding, written in my own words, following course guidelines regarding collaboration and appropriate tool usage.
 
 ---
 
